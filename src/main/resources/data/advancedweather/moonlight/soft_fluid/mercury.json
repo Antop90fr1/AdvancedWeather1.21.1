@@ -1,6 +1,6 @@
 {
-  "still_texture": "moonlight:block/soft_fluids/honey_liquid",
-  "flowing_texture": "moonlight:block/soft_fluids/honey_liquid",
+  "still_texture": "advancedweather:block/soft_fluids/mercury_still",
+  "flowing_texture": "advancedweather:block/soft_fluids/mercury_flow",
   "translation_key": "fluid.advancedweather.mercury",
   "tint_method": "no_tint",
   "containers": [
