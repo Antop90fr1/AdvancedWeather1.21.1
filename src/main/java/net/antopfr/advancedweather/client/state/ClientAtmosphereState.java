@@ -2,7 +2,7 @@ package net.antopfr.advancedweather.client.state;
 
 import net.antopfr.advancedweather.weather.BiomeAtmosphereData;
 import net.antopfr.advancedweather.weather.DimensionProfile;
-import net.antopfr.advancedweather.weather.WeatherTypes;
+import net.antopfr.advancedweather.weather.wind.WindField;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -18,7 +18,6 @@ public class ClientAtmosphereState {
     private static String category         = "NEUTRAL";
     private static String predictedNext    = "-";
     private static String predictedIn30min = "-";
-    private static float windIntensity     = 0f;
     private static String mode             = "PROCEDURAL";
     private static float confidenceNext = 50f;
     private static float confidenceIn30 = 50f;
@@ -38,14 +37,13 @@ public class ClientAtmosphereState {
 
     // NETWORK UPDATES
     public static void updatePressure(float p, float vel, float f30, String cat, String next, String in30,
-                                      float wind, String m, float confNext, float confIn30) {
+                                      String m, float confNext, float confIn30) {
         pressure = p;
         pressureVel = vel;
         pressureIn30 = f30;
         category = cat;
         predictedNext = next;
         predictedIn30min = in30;
-        windIntensity = wind;
         mode = m;
         confidenceNext = confNext;
         confidenceIn30 = confIn30;
@@ -116,7 +114,7 @@ public class ClientAtmosphereState {
     public static String getCategory()         { return category; }
     public static String getPredictedNext()    { return predictedNext; }
     public static String getPredictedIn30min() { return predictedIn30min; }
-    public static float getWindIntensity()     { return windIntensity; }
+    public static float getWindIntensity()     { return WindField.clientState().intensity(); }
     public static String getMode()             { return mode; }
     public static float getConfidenceNext() { return confidenceNext; }
     public static float getConfidenceIn30() { return confidenceIn30; }
@@ -136,10 +134,6 @@ public class ClientAtmosphereState {
     public static float getLocalHumidity()          { return Mth.clamp(humidity + humOffset, 0f, 100f); }
     public static float getLocalHumidityForecast()  { return Mth.clamp(humForecast + humOffsetTarget, 0f, 100f); }
     public static float getTempOffset() { return tempOffset; }
-
-    private static WeatherTypes clientWeather() {
-        return ClientWeatherState.getCurrentWeather();
-    }
 
     public static float getLocalPressureAt(Level level, BlockPos pos) {
         float deltaY = pos.getY() - 64f;
@@ -175,7 +169,7 @@ public class ClientAtmosphereState {
     public static void reset() {
         pressure = 1013f; pressureVel = 0f; pressureIn30 = 1013f;
         category = "NEUTRAL"; predictedNext = "-"; predictedIn30min = "-";
-        windIntensity = 0f; mode = "PROCEDURAL";
+        WindField.clientState().reset(); mode = "PROCEDURAL";
         confidenceNext = 50f; confidenceIn30 = 50f;
         temperature = 15f; tempForecast = 15f;
         humidity = 60f; humForecast = 60f;

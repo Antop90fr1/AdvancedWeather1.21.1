@@ -6,14 +6,15 @@ import dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle;
 import dev.ryanhcode.sable.api.physics.mass.MassData;
 import dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer;
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
+import dev.ryanhcode.sable.companion.math.BoundingBox3ic;
 import dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData;
 import dev.ryanhcode.sable.platform.SableEventPlatform;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.plot.ServerLevelPlot;
 import dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem;
 import net.antopfr.advancedweather.config.AWCommonConfig;
-import net.antopfr.advancedweather.weather.WeatherManager;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindDirectionCalc;
+import net.antopfr.advancedweather.weather.wind.WindField;
+import net.antopfr.advancedweather.weather.wind.WindSample;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
@@ -22,7 +23,7 @@ import org.joml.Vector3dc;
 
 public final class ContraptionWindCompat {
 
-    private static final double DRAG_COEFF = 0.6;
+    private static final double DRAG_COEFF = 0.09;
 
     private static final double AREA_PER_SURFACE = 1.0;
     private static final double HULL_AREA_FACTOR = 0.15;
@@ -38,13 +39,8 @@ public final class ContraptionWindCompat {
         SubLevelContainer c = SubLevelContainer.getContainer(level);
         if (!(c instanceof ServerSubLevelContainer container)) return;
 
-        float intensity = WeatherManager.get(level).getWindIntensity(level);
-        if (intensity <= 0.01f) return;
-
-        double speed = (intensity * intensity * 120.0) / 3.6;
-
-        Vec3 dir = WindDirectionCalc.getDirection(level.getDayTime(), 0f);
-        Vector3d windWorld = new Vector3d(dir.x * speed, 0.0, dir.z * speed);
+        if (WindField.baseIntensity(level) <= 0.01f) return;
+        Vec3 prevailing = WindField.prevailingDirection(level, 0f);
 
         for (ServerSubLevel sub : container.getAllSubLevels()) {
             if (!isAerodynamic(sub)) continue;
@@ -55,21 +51,25 @@ public final class ContraptionWindCompat {
             MassData mass = sub.getMassTracker();
             if (mass.isInvalid()) continue;
 
+            Vector3dc position = sub.logicalPose().position();
+            WindSample air = WindField.sample(level, prevailing, position.x(), position.y(), position.z(), 0f);
+            double speed = air.speedKmh() / 3.6;
+            Vector3d windWorld = new Vector3d(air.direction().x * speed, 0.0, air.direction().z * speed);
+
             Vector3d vel = handle.getLinearVelocity(new Vector3d());
             Vector3d rel = new Vector3d(windWorld).sub(vel.x, 0.0, vel.z);
             double relSpeed = rel.length();
             if (relSpeed < 0.01) continue;
 
-            double pressure = DimensionPhysicsData.getAirPressure(level, sub.logicalPose().position());
+            double pressure = DimensionPhysicsData.getAirPressure(level, position);
 
-            double force = DRAG_COEFF * exposedArea(sub) * relSpeed * relSpeed * pressure
+            Vector3d localWind = sub.logicalPose().orientation()
+                    .transformInverse(rel.normalize(new Vector3d()));
+
+            double force = DRAG_COEFF * exposedArea(sub, localWind) * relSpeed * relSpeed * pressure
                     * AWCommonConfig.get().contraptionWindStrength;
 
-            Vector3d worldImpulse = rel.normalize(new Vector3d())
-                    .mul(force * timeStep);
-
-            Vector3d localImpulse = sub.logicalPose().orientation()
-                    .transformInverse(worldImpulse, new Vector3d());
+            Vector3d localImpulse = new Vector3d(localWind).mul(force * timeStep);
 
             sub.getOrCreateQueuedForceGroup(AWForceGroups.WIND.get())
                     .applyAndRecordPointForce(centerOfPressure(sub), localImpulse);
@@ -89,10 +89,16 @@ public final class ContraptionWindCompat {
         return false;
     }
 
-    private static double exposedArea(ServerSubLevel sub) {
+    private static double exposedArea(ServerSubLevel sub, Vector3d localWind) {
         int surfaces = sub.getPlot().getLiftProviders().size();
-        double hull = Math.cbrt(Math.max(1.0, sub.getMassTracker().getMass()));
-        return surfaces * AREA_PER_SURFACE + hull * hull * HULL_AREA_FACTOR;
+        BoundingBox3ic bounds = sub.getPlot().getBoundingBox();
+        double sizeX = bounds.maxX() - bounds.minX() + 1;
+        double sizeY = bounds.maxY() - bounds.minY() + 1;
+        double sizeZ = bounds.maxZ() - bounds.minZ() + 1;
+        double silhouette = Math.abs(localWind.x) * sizeY * sizeZ
+                + Math.abs(localWind.y) * sizeX * sizeZ
+                + Math.abs(localWind.z) * sizeX * sizeY;
+        return surfaces * AREA_PER_SURFACE + silhouette * HULL_AREA_FACTOR;
     }
 
     private static Vector3d centerOfPressure(ServerSubLevel sub) {

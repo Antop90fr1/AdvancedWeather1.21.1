@@ -46,12 +46,11 @@ public class WeatherAlmanacItem extends Item {
         }
         tooltip.add(Component.literal(Key.c("§7", "advancedweather.almanac.contains")
                 + " §f" + records.size() + "§7 "
-                + Key.t("advancedweather.almanac.report")
-                + (records.size() > 1 ? "s" : "")));
+                + Key.t(records.size() > 1 ? "advancedweather.almanac.reports" : "advancedweather.almanac.report")));
         long firstDay = records.getFirst().gameTime() / 24000L;
         long lastDay = records.getLast().gameTime() / 24000L;
         tooltip.add(Component.literal(firstDay == lastDay
                 ? Key.c("§8", "advancedweather.almanac.day") + " " + firstDay
-                : Key.c("§8", "advancedweather.almanac.day") + firstDay + " - " + Key.t("advancedweather.almanac.day") + " " + lastDay));
+                : Key.c("§8", "advancedweather.almanac.day") + " " + firstDay + " - " + Key.t("advancedweather.almanac.day") + " " + lastDay));
     }
 }

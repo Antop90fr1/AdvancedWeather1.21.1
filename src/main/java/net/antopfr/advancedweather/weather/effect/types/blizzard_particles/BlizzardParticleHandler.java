@@ -4,7 +4,7 @@ import net.antopfr.advancedweather.client.state.ClientWeatherState;
 import net.antopfr.advancedweather.config.AWClientConfig;
 import net.antopfr.advancedweather.client.particle.AWParticles;
 import net.antopfr.advancedweather.util.PlayerChecks;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindDirection;
+import net.antopfr.advancedweather.client.wind.ClientWind;
 import net.antopfr.advancedweather.weather.WeatherEffects;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
@@ -36,7 +36,8 @@ public class BlizzardParticleHandler {
         double py = player.getY() + 1.0;
         double pz = player.getZ();
 
-        Vec3 wind = WindDirection.get(0f);
+        Vec3 wind = ClientWind.direction();
+        double surge = ClientWind.surge();
         double windX = -wind.x;
         double windZ = -wind.z;
 
@@ -48,9 +49,9 @@ public class BlizzardParticleHandler {
             double oy = mc.level.random.nextDouble() * config.blizzardHeightSpread - 2;
             double oz = windZ * spawnDist + (mc.level.random.nextDouble() - 0.5) * config.blizzardSpread;
 
-            double dx = -windX * config.blizzardWindSpeed + (mc.level.random.nextDouble() - 0.5) * 0.02;
+            double dx = -windX * config.blizzardWindSpeed * surge + (mc.level.random.nextDouble() - 0.5) * 0.02;
             double dy = -0.005 + (mc.level.random.nextDouble() - 0.5) * 0.005;
-            double dz = -windZ * config.blizzardWindSpeed + (mc.level.random.nextDouble() - 0.5) * 0.02;
+            double dz = -windZ * config.blizzardWindSpeed * surge + (mc.level.random.nextDouble() - 0.5) * 0.02;
 
             mc.level.addParticle(
                     AWParticles.BLIZZARD_FLAKE.get(),

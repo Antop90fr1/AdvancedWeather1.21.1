@@ -1,0 +1,15 @@
+{
+  "display": {
+    "icon": { "id": "advancedweather:kite" },
+    "title": { "translate": "advancement.advancedweather.franklin.title" },
+    "description": { "translate": "advancement.advancedweather.franklin.description" },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "parent": "advancedweather:overworld_skies",
+  "criteria": {
+    "code": { "trigger": "minecraft:impossible" }
+  }
+}

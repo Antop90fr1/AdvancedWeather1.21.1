@@ -27,7 +27,7 @@ public class SeedingBurst {
             case COOLING -> new Vector3f[] { // frost crystal
                     rgb(0x8FD4E8), rgb(0xB8ECF5), rgb(0x5FA8D8), rgb(0xE0F7FF), rgb(0x7FC4E0)
             };
-            case SEEDING -> new Vector3f[] { // rain crystal
+            case SEEDING -> new Vector3f[] {
                     rgb(0x3D6BC4), rgb(0x5B8FD8), rgb(0x8FB8F0), rgb(0x2E4E8A), rgb(0xA8C8F5)
             };
             case DISSIPATING -> new Vector3f[] { // clear crystal

@@ -48,6 +48,18 @@ public class AWParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MERCURY_BUBBLE_POP =
             PARTICLE_TYPES.register("mercury_bubble_pop", () -> new SimpleParticleType(false));
 
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> CHORUS_PETAL =
+            PARTICLE_TYPES.register("chorus_petal", () -> new SimpleParticleType(false));
+
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> LAVA_DROP =
+            PARTICLE_TYPES.register("lava_drop", () -> new SimpleParticleType(false));
+
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VOID_MOTE =
+            PARTICLE_TYPES.register("void_mote", () -> new SimpleParticleType(false));
+
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VOID_DROP =
+            PARTICLE_TYPES.register("void_drop", () -> new SimpleParticleType(false));
+
     public static void register(IEventBus modEventBus) {
         PARTICLE_TYPES.register(modEventBus);
     }

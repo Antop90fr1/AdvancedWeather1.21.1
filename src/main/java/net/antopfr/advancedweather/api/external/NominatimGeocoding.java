@@ -40,7 +40,7 @@ public class NominatimGeocoding {
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create(url))
                         .timeout(Duration.ofSeconds(8))
-                        .header("User-Agent", "AdvancedWeatherMod/0.1a (advancedweather@gmail.com)")
+                        .header("User-Agent", "AdvancedWeatherMod/0.1.3 (advancedweather@gmail.com)")
                         .GET()
                         .build();
 

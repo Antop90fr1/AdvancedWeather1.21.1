@@ -5,8 +5,6 @@ import net.antopfr.advancedweather.content.item.kite.KiteRenderer;
 import net.antopfr.advancedweather.util.AWRegistrate;
 import net.antopfr.advancedweather.weather.effect.types.chorus_plants.ChorusPlantEntity;
 import net.antopfr.advancedweather.weather.effect.types.chorus_plants.ChorusPlantRenderer;
-import net.antopfr.advancedweather.weather.effect.types.rainbows.RainbowEntity;
-import net.antopfr.advancedweather.weather.effect.types.rainbows.RainbowEntityRenderer;
 import net.antopfr.advancedweather.weather.effect.types.tumbleweeds.TumbleweedEntity;
 import net.antopfr.advancedweather.weather.effect.types.tumbleweeds.TumbleweedRenderer;
 import net.minecraft.world.entity.MobCategory;
@@ -31,16 +29,6 @@ public class AWEntities {
                             .clientTrackingRange(8)
                             .updateInterval(3))
                     .renderer(() -> ChorusPlantRenderer::new)
-                    .register();
-
-    public static final EntityEntry<RainbowEntity> RAINBOW =
-            AWRegistrate.get()
-                    .<RainbowEntity>entity("rainbow", RainbowEntity::new, MobCategory.MISC)
-                    .properties(b -> b
-                            .sized(0.5f, 0.5f)
-                            .clientTrackingRange(22)
-                            .updateInterval(20))
-                    .renderer(() -> RainbowEntityRenderer::new)
                     .register();
 
     public static final EntityEntry<SeedingRocketEntity> SEEDING_ROCKET =

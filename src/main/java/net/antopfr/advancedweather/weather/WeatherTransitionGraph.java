@@ -13,31 +13,10 @@ public class WeatherTransitionGraph {
 
     public record Transition(WeatherTypes target, float weight) {}
 
-    private static final Map<WeatherTypes, Integer> MIN_DURATION = new EnumMap<>(WeatherTypes.class);
-    private static final Map<WeatherTypes, Integer> MAX_DURATION = new EnumMap<>(WeatherTypes.class);
-
     private static final Map<WeatherTypes, List<Transition>> TRANSITIONS = new EnumMap<>(WeatherTypes.class);
 
     static {
         // OVERWORLD
-        duration(WeatherTypes.CLEAR,          18000, 36000);
-        duration(WeatherTypes.SUNNY,          12000, 24000);
-        duration(WeatherTypes.CLOUDY,          6000, 24000);
-        duration(WeatherTypes.OVERCAST,        6000, 18000);
-        duration(WeatherTypes.MIST,            3000,  9000);
-        duration(WeatherTypes.DRIZZLE,         3000, 12000);
-        duration(WeatherTypes.LIGHT_RAIN,      6000, 18000);
-        duration(WeatherTypes.HEAVY_RAIN,      4000, 18000);
-        duration(WeatherTypes.FREEZING_RAIN,   2000,  6000);
-        duration(WeatherTypes.THUNDERSTORM,    2000,  6000);
-        duration(WeatherTypes.SNOW,            9000, 18000);
-        duration(WeatherTypes.BLIZZARD,        3000,  9000);
-        duration(WeatherTypes.HAIL,            1000,  3000);
-        duration(WeatherTypes.FOG,             9000, 18000);
-        duration(WeatherTypes.DENSE_FOG,       3000,  9000);
-        duration(WeatherTypes.WINDY,           6000, 24000);
-        duration(WeatherTypes.SANDSTORM,       3000, 12000);
-
         from(WeatherTypes.CLEAR,
                 to(WeatherTypes.CLEAR,    3),
                 to(WeatherTypes.SUNNY,    5),
@@ -161,13 +140,6 @@ public class WeatherTransitionGraph {
 
 
         // NETHER
-        duration(WeatherTypes.NETHER_CLEAR,    18000, 36000);
-        duration(WeatherTypes.ASH_STORM,       6000, 18000);
-        duration(WeatherTypes.BRIMSTONE_STORM, 3000, 9000);
-        duration(WeatherTypes.LAVA_RAIN,       2000, 6000);
-        duration(WeatherTypes.NETHERSTORM,     2000, 5000);
-        duration(WeatherTypes.HELLFIRE,        4000, 12000);
-
         from(WeatherTypes.NETHER_CLEAR,
                 to(WeatherTypes.NETHER_CLEAR,    3),
                 to(WeatherTypes.ASH_STORM,       3),
@@ -209,12 +181,6 @@ public class WeatherTransitionGraph {
 
 
         // END
-        duration(WeatherTypes.END_CLEAR,   18000, 36000);
-        duration(WeatherTypes.VOID_STORM,   4000, 12000);
-        duration(WeatherTypes.END_MIST,     6000, 18000);
-        duration(WeatherTypes.CHORUS_GALE,  3000, 9000);
-        duration(WeatherTypes.ENDERSTORM,   2000, 6000);
-
         from(WeatherTypes.END_CLEAR,
                 to(WeatherTypes.END_CLEAR,  4),
                 to(WeatherTypes.END_MIST,   3),
@@ -249,6 +215,49 @@ public class WeatherTransitionGraph {
         );
     }
 
+    private static final Map<WeatherTypes, List<Transition>> COLD_SNAP = new EnumMap<>(WeatherTypes.class);
+    private static final Map<WeatherTypes, List<Transition>> WARM_SPELL = new EnumMap<>(WeatherTypes.class);
+
+    static {
+        COLD_SNAP.put(WeatherTypes.DRIZZLE,    List.of(to(WeatherTypes.SNOW, 2), to(WeatherTypes.FREEZING_RAIN, 1)));
+        COLD_SNAP.put(WeatherTypes.LIGHT_RAIN, List.of(to(WeatherTypes.SNOW, 3)));
+        COLD_SNAP.put(WeatherTypes.HEAVY_RAIN, List.of(to(WeatherTypes.SNOW, 2), to(WeatherTypes.FREEZING_RAIN, 1)));
+
+        WARM_SPELL.put(WeatherTypes.SNOW,          List.of(to(WeatherTypes.LIGHT_RAIN, 3)));
+        WARM_SPELL.put(WeatherTypes.BLIZZARD,      List.of(to(WeatherTypes.HEAVY_RAIN, 2), to(WeatherTypes.LIGHT_RAIN, 1)));
+        WARM_SPELL.put(WeatherTypes.FREEZING_RAIN, List.of(to(WeatherTypes.DRIZZLE, 1)));
+    }
+
+    private static final Map<WeatherTypes, List<Transition>> HEAT_STORM = new EnumMap<>(WeatherTypes.class);
+    private static final float HEAT_STORM_FROM = 12f;
+    private static final float HEAT_STORM_FULL = 22f;
+
+    static {
+        HEAT_STORM.put(WeatherTypes.OVERCAST, List.of(to(WeatherTypes.THUNDERSTORM, 6)));
+        HEAT_STORM.put(WeatherTypes.CLOUDY,   List.of(to(WeatherTypes.THUNDERSTORM, 3)));
+    }
+
+    private static float heat(float tempC) {
+        return Math.max(0f, Math.min(1f, (tempC - HEAT_STORM_FROM) / (HEAT_STORM_FULL - HEAT_STORM_FROM)));
+    }
+
+    private static List<Transition> candidates(WeatherTypes current, WeatherTypes.Dimension dimension,
+                                               AtmosphericSystem atmosphere) {
+        List<Transition> candidates = new ArrayList<>(TRANSITIONS.getOrDefault(current, List.of()));
+        if (dimension == WeatherTypes.Dimension.OVERWORLD) {
+            addConversions(candidates, COLD_SNAP.get(current), atmosphere.biasStrength(AtmosphericForcing.Bias.COOLING));
+            addConversions(candidates, WARM_SPELL.get(current), atmosphere.biasStrength(AtmosphericForcing.Bias.HEATING));
+            addConversions(candidates, HEAT_STORM.get(current), heat(atmosphere.getTemperature()));
+        }
+        candidates.removeIf(t -> !isCompatible(t.target(), dimension) || !isEnabled(t.target()));
+        return candidates;
+    }
+
+    private static void addConversions(List<Transition> candidates, List<Transition> conversions, float strength) {
+        if (conversions == null || strength <= 0.05f) return;
+        for (Transition t : conversions) candidates.add(to(t.target(), t.weight() * strength));
+    }
+
     private static WeatherTypes defaultForDimension(WeatherTypes.Dimension dim) {
         return switch (dim) {
             case NETHER -> WeatherTypes.NETHER_CLEAR;
@@ -266,11 +275,7 @@ public class WeatherTransitionGraph {
                                            WeatherTypes.Dimension dimension,
                                            ServerLevel level,
                                            List<WeatherTypes> recentHistory) {
-        List<Transition> transitions = TRANSITIONS.getOrDefault(current, List.of())
-                .stream()
-                .filter(t -> isCompatible(t.target(), dimension))
-                .filter(t -> isEnabled(t.target()))
-                .toList();
+        List<Transition> transitions = candidates(current, dimension, atmosphere);
 
         if (transitions.isEmpty()) return defaultForDimension(dimension);
 
@@ -288,7 +293,7 @@ public class WeatherTransitionGraph {
                 w *= AtmosphereModifiers.pressureModifier(t.target(), p);
                 w *= AtmosphereModifiers.atmosphereModifier(t.target(), tempC, humidity);
                 w *= SeasonModifiers.seasonModifier(t.target(), level);
-                w *= AtmosphericForcing.biasModifier(t.target(), atmosphere.dominantBias());
+                w *= atmosphere.biasModifier(t.target());
             }
 
             w *= WeatherHistoryModifiers.historyModifier(t.target(), recentHistory);
@@ -312,11 +317,7 @@ public class WeatherTransitionGraph {
                                                        WeatherTypes.Dimension dimension,
                                                        ServerLevel level,
                                                        List<WeatherTypes> recentHistory) {
-        List<Transition> transitions = TRANSITIONS.getOrDefault(current, List.of())
-                .stream()
-                .filter(t -> isCompatible(t.target(), dimension))
-                .filter(t -> isEnabled(t.target()))
-                .toList();
+        List<Transition> transitions = candidates(current, dimension, atmosphere);
 
         if (transitions.isEmpty()) {
             WeatherTypes fallback = defaultForDimension(dimension);
@@ -339,7 +340,7 @@ public class WeatherTransitionGraph {
                 w *= AtmosphereModifiers.pressureModifier(t.target(), p);
                 w *= AtmosphereModifiers.atmosphereModifier(t.target(), tempC, humidity);
                 w *= SeasonModifiers.seasonModifier(t.target(), level);
-                w *= AtmosphericForcing.biasModifier(t.target(), atmosphere.dominantBias());
+                w *= atmosphere.biasModifier(t.target());
             }
 
             w *= WeatherHistoryModifiers.historyModifier(t.target(), recentHistory);
@@ -360,8 +361,9 @@ public class WeatherTransitionGraph {
                                                             WeatherTypes.Dimension dimension, ServerLevel level,
                                                             List<WeatherTypes> measuredHistory) {
 
-        List<Transition> transitions = TRANSITIONS.getOrDefault(from, List.of())
-                .stream()
+        List<Transition> known = new ArrayList<>(TRANSITIONS.getOrDefault(from, List.of()));
+        if (dimension == WeatherTypes.Dimension.OVERWORLD) addConversions(known, HEAT_STORM.get(from), heat(tempC));
+        List<Transition> transitions = known.stream()
                 .filter(t -> isCompatible(t.target(), dimension))
                 .filter(t -> isEnabled(t.target()))
                 .toList();
@@ -419,6 +421,47 @@ public class WeatherTransitionGraph {
         return entries;
     }
 
+    public record Outlook(WeatherTypes type, float confidence) {}
+
+    private static final int OUTLOOK_FUTURES = 40;
+    private static final long OUTLOOK_SEED = 0x57A7L;
+
+    public static Outlook outlook(WeatherTypes current, int ticksLeft, int ticksAhead,
+                                  AtmosphericSystem atmosphere, WeatherTypes.Dimension dimension,
+                                  ServerLevel level, List<WeatherTypes> recentHistory) {
+        Random random = new Random(OUTLOOK_SEED);
+        int[] votes = new int[WeatherTypes.values().length];
+        for (int i = 0; i < OUTLOOK_FUTURES; i++) {
+            WeatherTypes end = playOut(current, ticksLeft, ticksAhead, random, atmosphere, dimension, level, recentHistory);
+            votes[end.ordinal()]++;
+        }
+
+        int best = 0;
+        for (int i = 1; i < votes.length; i++) {
+            if (votes[i] > votes[best]) best = i;
+        }
+        float share = 100f * votes[best] / OUTLOOK_FUTURES;
+        return new Outlook(WeatherTypes.values()[best], Math.max(5f, Math.min(98f, share)));
+    }
+
+    private static WeatherTypes playOut(WeatherTypes current, int ticksLeft, int ticksAhead, Random random,
+                                        AtmosphericSystem atmosphere, WeatherTypes.Dimension dimension,
+                                        ServerLevel level, List<WeatherTypes> recentHistory) {
+        long now = level.getGameTime();
+        WeatherTypes weather = current;
+        List<WeatherTypes> past = new ArrayList<>(recentHistory);
+        int elapsed = ticksLeft;
+
+        while (elapsed <= ticksAhead) {
+            AtmosphericSystem then = atmosphere.forecastState(elapsed / 1200, now, level, weather);
+            weather = nextWeather(weather, random, then, dimension, level, past);
+            past.add(weather);
+            if (past.size() > Math.max(1, recentHistory.size())) past.removeFirst();
+            elapsed += Math.max(20, randomDuration(weather, random, (now + elapsed) % 24000, level));
+        }
+        return weather;
+    }
+
     public record RankedForecast(WeatherTypes type, float probability) {}
 
     public static List<RankedForecast> topCandidates(Prediction prediction, int n) {
@@ -439,8 +482,8 @@ public class WeatherTransitionGraph {
     }
 
     public static int randomDuration(WeatherTypes type, Random random, long timeOfDay, ServerLevel level) {
-        int min = MIN_DURATION.getOrDefault(type, 6000);
-        int max = MAX_DURATION.getOrDefault(type, 12000);
+        int min = WeatherDefinitions.get(type).minDuration;
+        int max = WeatherDefinitions.get(type).maxDuration;
 
         float hour = (timeOfDay + 6000) % 24000 / 1000f;
 
@@ -527,22 +570,8 @@ public class WeatherTransitionGraph {
         };
     }
 
-    public static int getMinDuration(WeatherTypes type) {
-        return MIN_DURATION.getOrDefault(type, 6000);
-    }
-
-    public static int getMaxDuration(WeatherTypes type) {
-        return MAX_DURATION.getOrDefault(type, 12000);
-    }
-
     public static List<Transition> getTransitions(WeatherTypes from) {
         return TRANSITIONS.getOrDefault(from, List.of());
-    }
-
-
-    private static void duration(WeatherTypes type, int min, int max) {
-        MIN_DURATION.put(type, min);
-        MAX_DURATION.put(type, max);
     }
 
     private static void from(WeatherTypes type, Transition... transitions) {

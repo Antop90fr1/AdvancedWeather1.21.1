@@ -1,8 +1,8 @@
 package net.antopfr.advancedweather.mixin;
 
 import net.antopfr.advancedweather.config.AWCommonConfig;
-import net.antopfr.advancedweather.weather.WeatherManager;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindDirectionCalc;
+import net.antopfr.advancedweather.weather.wind.WindField;
+import net.antopfr.advancedweather.weather.wind.WindSample;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -24,12 +24,13 @@ public class FireBlockMixin {
                                             RandomSource random, CallbackInfo ci) {
         if (!AWCommonConfig.get().windSpreadsFire) return;
 
-        float intensity = WeatherManager.get(level).getWindIntensity(level);
+        WindSample wind = WindField.sample(level, pos);
+        float intensity = wind.intensity();
         if (intensity < 0.4f) return;
         if (random.nextFloat() > intensity * 0.5f) return;
 
-        Vec3 wind = WindDirectionCalc.getDirection(level.getDayTime(), 0f);
-        Direction dir = Direction.getNearest(wind.x, 0.0, wind.z);
+        Vec3 blow = wind.direction();
+        Direction dir = Direction.getNearest(blow.x, 0.0, blow.z);
         BlockPos target = pos.relative(dir);
         if (!level.getBlockState(target).isAir()) return;
 

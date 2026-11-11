@@ -18,14 +18,16 @@ public class SeedingRocketItem extends Item {
     private final float pressurePush;
     private final float dewPointPush;
     private final float tempOffset;
+    private final int forcingTicks;
 
     public SeedingRocketItem(Properties props, AtmosphericForcing.Bias bias,
-                             float pressurePush, float dewPointPush, float tempOffset) {
+                             float pressurePush, float dewPointPush, float tempOffset, int forcingTicks) {
         super(props);
         this.bias = bias;
         this.pressurePush = pressurePush;
         this.dewPointPush = dewPointPush;
         this.tempOffset = tempOffset;
+        this.forcingTicks = forcingTicks;
     }
 
     @Override
@@ -42,7 +44,7 @@ public class SeedingRocketItem extends Item {
                     click.x + face.getStepX() * 0.15,
                     click.y + face.getStepY() * 0.15,
                     click.z + face.getStepZ() * 0.15,
-                    bias, pressurePush, dewPointPush, tempOffset);
+                    bias, pressurePush, dewPointPush, tempOffset, forcingTicks);
 
             level.addFreshEntity(rocket);
 

@@ -39,23 +39,23 @@ public class AtmosphereModifiers {
             }
 
             case THUNDERSTORM -> {
-                float t = tempFactor(tempC, 18f, 45f);
+                float t = tempFactor(tempC, 10f, 40f);
                 float h = humidityFactor(humidity, 70f, 100f);
                 yield t * h;
             }
 
             case HEAVY_RAIN -> {
                 float h = humidityFactor(humidity, 75f, 100f);
-                yield h;
+                yield h * liquidFactor(tempC);
             }
 
             case LIGHT_RAIN -> {
                 float h = humidityFactor(humidity, 60f, 100f);
-                yield h;
+                yield h * liquidFactor(tempC);
             }
             case DRIZZLE -> {
                 float h = humidityFactor(humidity, 55f, 90f);
-                yield h;
+                yield h * liquidFactor(tempC);
             }
 
             case SANDSTORM -> {
@@ -75,7 +75,7 @@ public class AtmosphereModifiers {
             }
 
             case HAIL -> {
-                float t = tempC < 10f ? 1.5f : 0.3f;
+                float t = tempC < 10f ? 0.4f : 1.5f;
                 float h = humidityFactor(humidity, 70f, 100f);
                 yield t * h;
             }
@@ -107,10 +107,16 @@ public class AtmosphereModifiers {
             case BLIZZARD    -> 0.02f + inv * 3.5f;
             case FREEZING_RAIN -> 0.02f + inv * 3.0f;
             case SANDSTORM   -> 0.02f + inv * 3.0f;
-            case THUNDERSTORM -> inv > 0.5f ? 0.02f + inv * 5.0f : 0.01f;
-            case HAIL         -> inv > 0.6f ? 0.02f + inv * 4.0f : 0.01f;
+            case THUNDERSTORM -> inv > 0.35f ? 0.02f + inv * 5.0f : 0.01f;
+            case HAIL         -> inv > 0.4f ? 0.02f + inv * 4.0f : 0.01f;
             default -> 1.0f;
         };
+    }
+
+    private static float liquidFactor(float temp) {
+        if (temp >= 3f) return 1.0f;
+        if (temp <= -1f) return 0.03f;
+        return 0.03f + (temp + 1f) / 4f * 0.97f;
     }
 
     private static float tempFactor(float temp, float optMin, float optMax) {

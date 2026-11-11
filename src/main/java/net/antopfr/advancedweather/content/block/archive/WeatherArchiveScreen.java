@@ -6,7 +6,9 @@ import net.antopfr.advancedweather.content.WeatherRecord;
 import net.antopfr.advancedweather.util.Key;
 import net.antopfr.advancedweather.util.ValueColors;
 import net.antopfr.advancedweather.weather.WeatherTypes;
-import net.createmod.catnip.animation.LerpedFloat;
+import net.antopfr.advancedweather.weather.wind.WindScale;
+import net.antopfr.advancedweather.compat.catnip.CatnipCompat;
+import net.antopfr.advancedweather.compat.catnip.Smoothed;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -33,31 +35,31 @@ public class WeatherArchiveScreen extends Screen {
     private long viewEndTime = -1;
 
     private enum Series {
-        TEMPERATURE("Temp", "°C") {
+        TEMPERATURE("advancedweather.temp", "°C") {
             @Override float value(WeatherRecord r) { return r.temperature(); }
             @Override int color(float v) { return ValueColors.temperature(v); }
             @Override boolean present(WeatherRecord r) { return r.hasTemperature(); }
         },
-        PRESSURE("Pressure", "hPa") {
+        PRESSURE("advancedweather.pressure", "hPa") {
             @Override float value(WeatherRecord r) { return r.pressure(); }
             @Override int color(float v) { return 0xE0E0E0; }
             @Override boolean present(WeatherRecord r) { return r.hasPressure(); }
         },
-        HUMIDITY("Humidity", "%") {
+        HUMIDITY("advancedweather.humidity", "%") {
             @Override float value(WeatherRecord r) { return r.humidity(); }
             @Override int color(float v) { return ValueColors.humidity(v); }
             @Override boolean present(WeatherRecord r) { return r.hasHumidity(); }
         },
-        WIND("Wind", "km/h") {
+        WIND("advancedweather.wind", "km/h") {
             @Override float value(WeatherRecord r) {
-                return r.windIntensity() * r.windIntensity() * 120f;
+                return WindScale.intensityToKmh(r.windIntensity());
             }
             @Override int color(float v) { return ValueColors.wind(v); }
             @Override boolean present(WeatherRecord r) { return r.hasWind(); }
         };
 
-        final String label, unit;
-        Series(String label, String unit) { this.label = label; this.unit = unit; }
+        final String labelKey, unit;
+        Series(String labelKey, String unit) { this.labelKey = labelKey; this.unit = unit; }
         abstract float value(WeatherRecord r);
         abstract int color(float v);
         abstract boolean present(WeatherRecord r);
@@ -70,8 +72,8 @@ public class WeatherArchiveScreen extends Screen {
     private Series current = Series.TEMPERATURE;
 
     private float openProgress = 0f;
-    private final LerpedFloat viewMin = LerpedFloat.linear();
-    private final LerpedFloat viewMax = LerpedFloat.linear();
+    private final Smoothed viewMin = CatnipCompat.smoothed();
+    private final Smoothed viewMax = CatnipCompat.smoothed();
     private boolean rangeInitialized = false;
 
     private int hoveredPoint = -1;
@@ -81,7 +83,7 @@ public class WeatherArchiveScreen extends Screen {
     private int lastRecordCount = -1;
 
     public WeatherArchiveScreen(WeatherArchiveBlockEntity archive) {
-        super(Component.literal("Weather Archive"));
+        super(Component.translatable("block.advancedweather.weather_archive"));
         this.archive = archive;
     }
 
@@ -159,8 +161,8 @@ public class WeatherArchiveScreen extends Screen {
             viewMax.startWithValue(max);
             rangeInitialized = true;
         }
-        viewMin.chase(min, 0.3, LerpedFloat.Chaser.EXP);
-        viewMax.chase(max, 0.3, LerpedFloat.Chaser.EXP);
+        viewMin.chase(min, 0.3);
+        viewMax.chase(max, 0.3);
         viewMin.tickChaser();
         viewMax.tickChaser();
     }
@@ -196,12 +198,14 @@ public class WeatherArchiveScreen extends Screen {
             if (age > outdated) {
                 WeatherTypes first = WeatherTypes.values()[top.getFirst()[0]];
                 drawWeatherIcon(g, first, x + 8, forecastLineY - 2, 12);
-                g.drawString(font, "§8Next: §m" + first.displayString() + "§r §c[outdated]",
+                g.drawString(font, "§8" + Key.label("advancedweather.archive.next") + "§m" + first.displayString()
+                                + "§r §c[" + Key.t("advancedweather.archive.outdated") + "]",
                         x + 24, forecastLineY, withAlpha(0x888888, alpha), true);
             } else {
                 int tx = x + 8;
-                g.drawString(font, "§7Next:", tx, forecastLineY, withAlpha(0xAAAAAA, alpha), true);
-                tx += font.width("Next:") + 6;
+                String next = Key.label("advancedweather.archive.next");
+                g.drawString(font, "§7" + next, tx, forecastLineY, withAlpha(0xAAAAAA, alpha), true);
+                tx += font.width(next) + 2;
 
                 for (int i = 0; i < top.size(); i++) {
                     WeatherTypes type = WeatherTypes.values()[top.get(i)[0]];
@@ -218,7 +222,7 @@ public class WeatherArchiveScreen extends Screen {
                     tx += font.width(ChatFormatting.stripFormatting(text)) + 8;
                 }
                 if (age > aging) {
-                    g.drawString(font, "§6[aging]", tx, forecastLineY, withAlpha(0xCC8833, alpha), true);
+                    g.drawString(font, "§6[" + Key.t("advancedweather.archive.aging") + "]", tx, forecastLineY, withAlpha(0xCC8833, alpha), true);
                 }
 
                 float conf = archive.getConfidence();
@@ -238,13 +242,14 @@ public class WeatherArchiveScreen extends Screen {
         } else {
             int needed = AWCommonConfig.get().archiveMinRecordsForForecast;
             int remaining = needed - Math.min(needed, records.size());
-            g.drawString(font, "§8Forecast requires " + remaining + " more record(s)",
+            g.drawString(font, "§8" + Component.translatable("advancedweather.archive.needs_records", remaining).getString(),
                     x + 8, forecastLineY, withAlpha(0x555555, alpha), true);
         }
 
         drawGraph(g, x, y, records, mouseX, mouseY, alpha, partialTick);
 
-        String count = records.size() + " record" + (records.size() > 1 ? "s" : "");
+        String count = Component.translatable(records.size() > 1 ? "advancedweather.archive.records"
+                : "advancedweather.archive.record", records.size()).getString();
         g.drawString(font, "§8" + count, x + 8, y + PANEL_H - 12, withAlpha(0x555555, alpha), false);
 
         if (!followingPresent()) {
@@ -275,7 +280,7 @@ public class WeatherArchiveScreen extends Screen {
             boolean hovered = mouseX >= tx && mouseX < tx + tabW && mouseY >= tabY && mouseY < tabY + tabH;
             int bg = active ? 0x2A4A66 : hovered ? 0x30404C : 0x1A2228;
             g.fill(tx, tabY, tx + tabW, tabY + tabH, (alpha << 24) | bg);
-            g.drawCenteredString(font, s.label, tx + tabW / 2, tabY + 4,
+            g.drawCenteredString(font, Key.t(s.labelKey), tx + tabW / 2, tabY + 4,
                     withAlpha(active ? 0x7FD4FF : 0xAAAAAA, alpha));
             tx += tabW + 4;
         }
@@ -339,7 +344,8 @@ public class WeatherArchiveScreen extends Screen {
 
         if (visible.isEmpty()) {
             String msg = records.stream().anyMatch(current::present)
-                    ? "§8No data in this window" : "§8No data for this series";
+                    ? "§8" + Key.t("advancedweather.archive.no_data_window")
+                    : "§8" + Key.t("advancedweather.archive.no_data_series");
             g.drawCenteredString(font, msg, gx + gw / 2, gy + gh / 2 - 4, withAlpha(0x555555, alpha));
             hoveredPoint = -1;
             plotted = List.of();
@@ -441,7 +447,7 @@ public class WeatherArchiveScreen extends Screen {
     private static String timeLabel(long gameTime) {
         long day = gameTime / 24000L;
         int hours = (int) ((gameTime + 6000) / 1000 % 24);
-        return "D" + day + " " + String.format("%02dh", hours);
+        return Key.t("advancedweather.archive.day_short") + day + " " + String.format("%02dh", hours);
     }
 
     private void drawPointTooltip(GuiGraphics g, int mouseX, int mouseY, WeatherRecord r,
@@ -451,18 +457,19 @@ public class WeatherArchiveScreen extends Screen {
         int minutes = (int) ((r.gameTime() % 1000) * 60 / 1000);
 
         List<Component> lines = new ArrayList<>();
-        if (forecast) lines.add(Component.literal("§b§lForecast (projected)"));
-        lines.add(Component.literal(String.format("§7Day %d, %02d:%02d", day, hours, minutes)));
-        if (!forecast) lines.add(Component.literal("§f" + r.weatherType().displayName()));
+        if (forecast) lines.add(Component.literal("§b§l" + Key.t("advancedweather.archive.forecast_point")));
+        lines.add(Component.translatable("advancedweather.time.day_clock", day,
+                String.format("%02d:%02d", hours, minutes)).withStyle(ChatFormatting.GRAY));
+        if (!forecast) lines.add(r.weatherType().displayName().copy().withStyle(ChatFormatting.WHITE));
 
         if (aggregated != null) {
-            lines.add(Component.literal(String.format("§7%s: §favg %.1f %s",
-                    current.label, aggregated.avg(), current.unit)));
-            lines.add(Component.literal(String.format("§8%.1f – %.1f (%d samples)",
-                    aggregated.min(), aggregated.max(), aggregated.count())));
+            lines.add(Component.literal(String.format("§7%s§f%s %.1f %s", Key.label(current.labelKey),
+                    Key.t("advancedweather.archive.average"), aggregated.avg(), current.unit)));
+            lines.add(Component.literal(String.format("§8%.1f – %.1f (%s)", aggregated.min(), aggregated.max(),
+                    Component.translatable("advancedweather.archive.samples", aggregated.count()).getString())));
         } else {
-            lines.add(Component.literal(String.format("§7%s: §f%.1f %s",
-                    current.label, current.value(r), current.unit)));
+            lines.add(Component.literal(String.format("§7%s§f%.1f %s",
+                    Key.label(current.labelKey), current.value(r), current.unit)));
         }
 
         if (!forecast) {
@@ -574,15 +581,15 @@ public class WeatherArchiveScreen extends Screen {
 
     private static String confidenceLabel(float c) {
         if (c < 0.30f) return Key.c("§8", "advancedweather.uncertain");
-        if (c < 0.55f) return Key.c("§7", "advancedweather.building");
-        if (c < 0.80f) return Key.c("§a", "advancedweather.reliable");
-        return Key.c("§2", "advancedweather.high");
+        if (c < 0.50f) return Key.c("§7", "advancedweather.possible");
+        if (c < 0.75f) return Key.c("§a", "advancedweather.likely");
+        return Key.c("§2", "advancedweather.very_likely");
     }
 
     private static int confidenceColor(float c) {
         if (c < 0.30f) return 0x777777;
-        if (c < 0.55f) return 0xAAAA55;
-        if (c < 0.80f) return 0x55AA55;
+        if (c < 0.50f) return 0xAAAA55;
+        if (c < 0.75f) return 0x55AA55;
         return 0x33CC44;
     }
 }

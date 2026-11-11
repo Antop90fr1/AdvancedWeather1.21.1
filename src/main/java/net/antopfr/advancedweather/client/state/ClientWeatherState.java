@@ -5,6 +5,7 @@ import net.antopfr.advancedweather.client.ClientWeatherHistory;
 import net.antopfr.advancedweather.util.FogColorLerp;
 import net.antopfr.advancedweather.util.FogLerp;
 import net.antopfr.advancedweather.weather.BiomeFogData;
+import net.antopfr.advancedweather.weather.WeatherDefinitions;
 import net.antopfr.advancedweather.weather.WeatherEffects;
 import net.antopfr.advancedweather.weather.WeatherTypes;
 import net.minecraft.client.Minecraft;
@@ -65,6 +66,18 @@ public class ClientWeatherState {
         if (transitionProgress >= 1.0f) return 1.0f;
         float smoothed = (transitionTicksElapsed + tickDelta) / TRANSITION_DURATION;
         return Math.min(1.0f, smoothed);
+    }
+
+    public static float presence(WeatherTypes type, float tickDelta) {
+        float progress = getSmoothedTransitionProgress(tickDelta);
+        if (currentWeather == type) return previousWeather == type ? 1f : progress;
+        return previousWeather == type ? 1f - progress : 0f;
+    }
+
+    public static WeatherTypes precipitating() {
+        if (WeatherDefinitions.get(currentWeather).rainIntensity > 0f) return currentWeather;
+        if (transitionProgress < 1f && WeatherDefinitions.get(previousWeather).rainIntensity > 0f) return previousWeather;
+        return currentWeather;
     }
 
     private static Set<WeatherEffects> activeEffects = EnumSet.noneOf(WeatherEffects.class);

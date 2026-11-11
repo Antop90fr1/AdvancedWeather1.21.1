@@ -2,58 +2,22 @@ package net.antopfr.advancedweather.weather;
 
 import net.minecraft.util.Mth;
 
-import java.util.Arrays;
-import java.util.List;
-
 public class ForecastConfidence {
 
-    public static float compute(List<WeatherTransitionGraph.Transition> transitions,
-                                float[] finalWeights,
-                                AtmosphericSystem atmosphere,
-                                int forecastMinutes) {
+    public static float compute(float[] weights, AtmosphericSystem atmosphere) {
+        if (weights.length == 0) return 98f;
 
-        float timeFactor = computeTimeFactor(forecastMinutes);
-        float marginFactor = computeMarginFactor(finalWeights);
-        float stabilityFactor = computeStabilityFactor(atmosphere);
-
-        float confidence = timeFactor * marginFactor * stabilityFactor;
-        return Mth.clamp(confidence * 100f, 5f, 98f);
+        float total = 0f, best = 0f;
+        for (float w : weights) {
+            total += w;
+            best = Math.max(best, w);
+        }
+        float share = total > 0f ? best / total : 0f;
+        return Mth.clamp(share * stability(atmosphere) * 100f, 5f, 98f);
     }
 
-    private static float computeTimeFactor(int forecastMinutes) {
-        if (forecastMinutes <= 0) return 1.0f;
-        return (float) Math.exp(-forecastMinutes / 65.0);
-    }
-
-    private static float computeMarginFactor(float[] weights) {
-        if (weights.length <= 1) return 1.0f;
-
-        float[] sorted = weights.clone();
-        Arrays.sort(sorted);
-        float best = sorted[sorted.length - 1];
-        float secondBest = sorted[sorted.length - 2];
-
-        float total = 0f;
-        for (float w : weights) total += w;
-        if (total <= 0f) return 0.5f;
-
-        float bestShare = best / total;
-        float margin = (best - secondBest) / total;
-
-        return Mth.clamp(bestShare * 0.6f + margin * 0.4f + 0.15f, 0.1f, 1.0f);
-    }
-
-
-    private static float computeStabilityFactor(AtmosphericSystem atmosphere) {
-        float pressureChange = Math.abs(atmosphere.getPressureVel());
-        float instability = Mth.clamp(pressureChange / 1.5f, 0f, 1f);
+    private static float stability(AtmosphericSystem atmosphere) {
+        float instability = Mth.clamp(Math.abs(atmosphere.getPressureVel()) / 1.5f, 0f, 1f);
         return Mth.lerp(instability, 1.0f, 0.55f);
-    }
-
-    public static String getConfidenceLabel(float confidencePercent) {
-        if (confidencePercent >= 80f) return "High";
-        if (confidencePercent >= 55f) return "Moderate";
-        if (confidencePercent >= 30f) return "Low";
-        return "Very Low";
     }
 }

@@ -4,7 +4,8 @@ import net.antopfr.advancedweather.client.state.ClientAtmosphereState;
 import net.antopfr.advancedweather.util.Key;
 import net.antopfr.advancedweather.util.UnitFormat;
 import net.antopfr.advancedweather.util.ValueColors;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindSpeedCalculation;
+import net.antopfr.advancedweather.weather.wind.WindField;
+import net.antopfr.advancedweather.weather.wind.WindScale;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -26,7 +27,7 @@ public class SensorScreen extends Screen {
     private float openProgress = 0f;
 
     public <T extends BlockEntity & IWeatherSensor> SensorScreen(T be) {
-        super(Component.literal("Sensor"));
+        super(Component.translatable("advancedweather.sensor.title"));
         this.sensorBe = be;
         this.sensor = be;
     }
@@ -62,14 +63,16 @@ public class SensorScreen extends Screen {
                 value = String.format("%.1f hPa", p);
                 valueColor = 0xFFFFFF;
                 float trend = ClientAtmosphereState.getTrend() * 20 * 60;
-                sub = trend > 0.002f ? "§a↑ rising" : trend < -0.002f ? "§c↓ falling" : "§7→ steady";
+                sub = trend > 0.002f ? "§a↑ " + Key.t("advancedweather.trend.rising")
+                        : trend < -0.002f ? "§c↓ " + Key.t("advancedweather.trend.falling")
+                        : "§7→ " + Key.t("advancedweather.trend.steady");
             }
             case THERMOMETER -> {
                 title = Key.t("block.advancedweather.thermometer");
                 float t = ClientAtmosphereState.getLocalTemperatureAt(level, pos);
                 value = UnitFormat.temperature(t);
                 valueColor = ValueColors.temperature(t);
-                sub = "§7at Y=" + pos.getY();
+                sub = "§7" + Component.translatable("advancedweather.sensor.at_y", pos.getY()).getString();
             }
             case HYGROMETER -> {
                 title = Key.t("block.advancedweather.hygrometer");;
@@ -80,13 +83,12 @@ public class SensorScreen extends Screen {
             }
             case ANEMOMETER -> {
                 title = Key.t("block.advancedweather.anemometer");;
-                float wind = ClientAtmosphereState.getWindIntensity();
-                float kmh = wind * wind * 120f;
+                float kmh = WindField.sample(level, pos).speedKmh();
                 value = UnitFormat.wind(kmh);
                 valueColor = ValueColors.wind(kmh);
-                sub = "§7[" + WindSpeedCalculation.getBeaufortLabel(kmh) + "]";
+                sub = "§7[" + WindScale.beaufort(kmh).getString() + "]";
             }
-            default -> { title = "Sensor"; value = "—"; sub = ""; valueColor = 0x777777; }
+            default -> { title = Key.t("advancedweather.sensor.title"); value = "—"; sub = ""; valueColor = 0x777777; }
         }
 
         g.drawCenteredString(font, "§l" + title, x + PANEL_W / 2, y + 4, withAlpha(0xFFFFFF, alpha));
@@ -100,7 +102,9 @@ public class SensorScreen extends Screen {
         g.drawCenteredString(font, sub, x + PANEL_W / 2, y + 52, withAlpha(0xAAAAAA, alpha));
 
         boolean clientValidGuess = sensorPlacementHint();
-        g.drawString(font, "Placement: " + (clientValidGuess ? "§a✔ valid" : "§6⚠ check exposure"),
+        g.drawString(font, Key.label("advancedweather.sensor.placement") + (clientValidGuess
+                        ? "§a✔ " + Key.t("advancedweather.sensor.placement.valid")
+                        : "§6⚠ " + Key.t("advancedweather.sensor.placement.check")),
                 x + 8, y + PANEL_H - 24, withAlpha(0xCCCCCC, alpha), true);
         g.drawString(font, "§8" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ(),
                 x + 8, y + PANEL_H - 12, withAlpha(0x666666, alpha), true);

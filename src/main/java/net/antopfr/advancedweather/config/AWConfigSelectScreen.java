@@ -4,6 +4,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 
@@ -12,7 +13,7 @@ public class AWConfigSelectScreen extends Screen {
     private final Screen parent;
 
     public AWConfigSelectScreen(Screen parent) {
-        super(Component.literal("Advanced Weather"));
+        super(Component.translatable("advancedweather.config.title"));
         this.parent = parent;
     }
 
@@ -22,25 +23,21 @@ public class AWConfigSelectScreen extends Screen {
         int by = this.height / 2 - 24;
 
         addRenderableWidget(Button.builder(
-                        Component.literal("Client Settings"),
+                        Component.translatable("advancedweather.config.select.client"),
                         b -> this.minecraft.setScreen(AWConfigScreen.createClient(this)))
-                .tooltip(Tooltip.create(Component.literal(
-                        "Visuals, HUD, units, particles and fog")))
+                .tooltip(Tooltip.create(Component.translatable("advancedweather.config.select.client.desc")))
                 .bounds(cx - 100, by, 200, 20)
                 .build());
 
         addRenderableWidget(Button.builder(
-                        Component.literal("Common Settings"),
+                        Component.translatable("advancedweather.config.select.common"),
                         b -> this.minecraft.setScreen(AWConfigScreen.createCommon(this)))
-                .tooltip(Tooltip.create(Component.literal(
-                        "Weather types, gameplay, real weather and forecasting.\n"
-                                + "Applies in singleplayer and when hosting. On a dedicated "
-                                + "server the server's own config file takes priority.")))
+                .tooltip(Tooltip.create(Component.translatable("advancedweather.config.select.common.desc")))
                 .bounds(cx - 100, by + 24, 200, 20)
                 .build());
 
         addRenderableWidget(Button.builder(
-                        Component.literal("Done"),
+                        CommonComponents.GUI_DONE,
                         b -> this.onClose())
                 .bounds(cx - 100, by + 60, 200, 20)
                 .build());

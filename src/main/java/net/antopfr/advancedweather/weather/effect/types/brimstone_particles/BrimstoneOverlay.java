@@ -8,9 +8,12 @@ import net.antopfr.advancedweather.weather.WeatherEffects;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
+@EventBusSubscriber(modid = "advancedweather", value = Dist.CLIENT)
 public class BrimstoneOverlay {
 
     private static final ResourceLocation PIPELINE_ID =

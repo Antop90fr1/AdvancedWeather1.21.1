@@ -1,18 +1,15 @@
 package net.antopfr.advancedweather.server.event;
 
 import net.antopfr.advancedweather.config.AWCommonConfig;
+import net.antopfr.advancedweather.weather.SandDrift;
 import net.antopfr.advancedweather.weather.WeatherManager;
 import net.antopfr.advancedweather.weather.WeatherTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.biome.Biomes;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
@@ -35,12 +32,11 @@ public class SandstormEffect {
         if (!level.canSeeSky(pos)) return;
         if (!isSandyBiome(level, pos)) return;
 
-        player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 0, false, false, true));
+        player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 0, false, false, false));
         player.causeFoodExhaustion(0.5f);
     }
 
-    private static boolean isSandyBiome(ServerLevel level, BlockPos pos) {
-        Holder<Biome> biome = level.getBiome(pos);
-        return biome.is(Biomes.DESERT) || biome.is(Biomes.BEACH) || biome.is(BiomeTags.IS_BADLANDS);
+    public static boolean isSandyBiome(ServerLevel level, BlockPos pos) {
+        return SandDrift.isSandy(level.getBiome(pos));
     }
 }

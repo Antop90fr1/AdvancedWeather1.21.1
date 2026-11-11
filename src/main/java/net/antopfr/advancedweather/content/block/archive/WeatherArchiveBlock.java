@@ -8,11 +8,13 @@ import net.antopfr.advancedweather.content.item.CalibrationToolItem;
 import net.antopfr.advancedweather.content.item.almanac.WeatherAlmanacItem;
 import net.antopfr.advancedweather.content.WeatherRecord;
 import net.antopfr.advancedweather.util.AWTooltips;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -175,12 +177,18 @@ public class WeatherArchiveBlock extends BaseEntityBlock {
     }
 
     private static Component buildIngestSummary(int ok, int duplicates, int tooOld, int full) {
-        StringBuilder sb = new StringBuilder();
-        if (ok > 0) sb.append("§a").append(ok).append(" archived");
-        if (duplicates > 0) sb.append(sb.isEmpty() ? "" : " §7· ").append("§7").append(duplicates).append(" duplicate(s)");
-        if (tooOld > 0) sb.append(sb.isEmpty() ? "" : " §7· ").append("§6").append(tooOld).append(" too old");
-        if (full > 0) sb.append(sb.isEmpty() ? "" : " §7· ").append("§c").append(full).append(" rejected (full)");
-        return Component.literal(sb.toString());
+        MutableComponent summary = Component.empty();
+        appendCount(summary, ok, "advancedweather.archive.ingest.archived", ChatFormatting.GREEN);
+        appendCount(summary, duplicates, "advancedweather.archive.ingest.duplicates", ChatFormatting.GRAY);
+        appendCount(summary, tooOld, "advancedweather.archive.ingest.too_old", ChatFormatting.GOLD);
+        appendCount(summary, full, "advancedweather.archive.ingest.full", ChatFormatting.RED);
+        return summary;
+    }
+
+    private static void appendCount(MutableComponent summary, int count, String key, ChatFormatting colour) {
+        if (count <= 0) return;
+        if (!summary.getSiblings().isEmpty()) summary.append(Component.literal(" · ").withStyle(ChatFormatting.GRAY));
+        summary.append(Component.translatable(key, count).withStyle(colour));
     }
 
     @Override

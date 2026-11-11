@@ -5,9 +5,10 @@ import net.antopfr.advancedweather.client.state.ClientAtmosphereState;
 import net.antopfr.advancedweather.client.state.ClientWeatherState;
 import net.antopfr.advancedweather.config.AWCommonConfig;
 import net.antopfr.advancedweather.weather.WeatherEffects;
-import net.antopfr.advancedweather.weather.effect.types.rainbows.RainbowEntity;
+import net.antopfr.advancedweather.weather.effect.types.rainbows.RainbowRenderer;
 import net.antopfr.advancedweather.weather.FeelsLikeCalculation;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindSpeedCalculation;
+import net.antopfr.advancedweather.client.wind.ClientWind;
+import net.antopfr.advancedweather.weather.wind.WindScale;
 import net.antopfr.advancedweather.weather.WeatherTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -54,13 +55,11 @@ public class WeatherDebugOverlay {
 
         // ── Calcule dynamiquement le nombre de lignes pour la hauteur ──────────
         Set<WeatherEffects> activeEffects = ClientWeatherState.getActiveEffects();
-        List<RainbowEntity> nearbyRainbows = mc.level.getEntitiesOfClass(
-                RainbowEntity.class,
-                mc.player.getBoundingBox().inflate(300));
+        float rainbow = RainbowRenderer.intensity(mc.level, 1f);
 
         int baseLines = 21; // lignes fixes garanties présentes
         int effectLines = activeEffects.isEmpty() ? 1 : 1 + (int) Math.ceil(activeEffects.size() / 2.0);
-        int rainbowLines = nearbyRainbows.isEmpty() ? 0 : nearbyRainbows.size();
+        int rainbowLines = rainbow > 0f ? 1 : 0;
         int panelH = lineH * (baseLines + effectLines + rainbowLines) + pad * 2 + 4;
         g.fill(x, y, x + panelW, y + panelH, 0xAA000000);
         int borderColor = getPressureCategoryColor(current);
@@ -96,7 +95,7 @@ public class WeatherDebugOverlay {
         float trend         = ClientAtmosphereState.getTrend() * 20 * 60;
         float forecast30    = ClientAtmosphereState.getForecast30();
         float w             = ClientAtmosphereState.getWindIntensity();
-        float wKmh          = WindSpeedCalculation.getWindSpeed();
+        float wKmh          = ClientWind.regionalKmh();
         String category     = ClientAtmosphereState.getCategory();
         String trendSym     = trend > 0.002f ? "§a↑" : trend < -0.002f ? "§c↓" : "§7→";
 
@@ -125,7 +124,7 @@ public class WeatherDebugOverlay {
         g.drawString(font, "§7Wind     §d" + String.format("%.3f", w)
                 + " §7(§c" + String.format("%.1f", wKmh) + " km/h§7)", x, y, 0xFFFFFF, false);
         y += lineH;
-        g.drawString(font, "§7Beaufort §f" + WindSpeedCalculation.getBeaufortLabel(wKmh), x, y, 0xFFFFFF, false);
+        g.drawString(font, "§7Beaufort §f" + WindScale.beaufort(wKmh).getString(), x, y, 0xFFFFFF, false);
         y += lineH;
 
         // ── Température & Humidité ───────────────────────────────────────────
@@ -176,13 +175,9 @@ public class WeatherDebugOverlay {
         }
 
         // ── Rainbows à proximité ──────────────────────────────────────────────
-        if (!nearbyRainbows.isEmpty()) {
-            for (RainbowEntity rainbow : nearbyRainbows) {
-                double dist = mc.player.position().distanceTo(rainbow.position());
-                g.drawString(font, "§7Rainbow  §dintensity=" + String.format("%.2f", rainbow.getIntensity())
-                        + " §8(" + String.format("%.0f", dist) + " blocks)", x, y, 0xFFFFFF, false);
-                y += lineH;
-            }
+        if (rainbow > 0f) {
+            g.drawString(font, "§7Rainbow  §dintensity=" + String.format("%.2f", rainbow), x, y, 0xFFFFFF, false);
+            y += lineH;
         }
 
         // ── Localisation ──────────────────────────────────────────────────────

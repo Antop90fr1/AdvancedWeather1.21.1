@@ -1,11 +1,8 @@
 package net.antopfr.advancedweather.mixin.client;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import net.antopfr.advancedweather.AdvancedWeather;
 import net.antopfr.advancedweather.client.state.ClientWeatherState;
 import net.antopfr.advancedweather.client.particle.AWParticles;
@@ -13,17 +10,12 @@ import net.antopfr.advancedweather.weather.WeatherTypes;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.Level;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -31,9 +23,7 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -53,22 +43,14 @@ public class LevelRendererMixin {
     private static final ResourceLocation VANILLA_RAIN =
             ResourceLocation.fromNamespaceAndPath("minecraft", "textures/environment/rain.png");
 
-    @Unique
-    private static final ResourceLocation LAVA_RAIN_LOCATION =
-            ResourceLocation.fromNamespaceAndPath(AdvancedWeather.MOD_ID, "textures/environment/lava_rain.png");
-
-    @Shadow private int ticks;
-    @Shadow @Final private float[] rainSizeX;
-    @Shadow @Final private float[] rainSizeZ;
-
-    @Redirect(
+    @WrapOperation(
             method = "renderSnowAndRain",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/blaze3d/systems/RenderSystem;setShaderTexture(ILnet/minecraft/resources/ResourceLocation;)V"
             )
     )
-    private void redirectShaderTexture(int unit, ResourceLocation texture) {
+    private void redirectShaderTexture(int unit, ResourceLocation texture, Operation<Void> original) {
         WeatherTypes current  = ClientWeatherState.getCurrentWeather();
         WeatherTypes previous = ClientWeatherState.getPreviousWeather();
         float aw_partialTick = 0f;
@@ -80,13 +62,13 @@ public class LevelRendererMixin {
         boolean texturesMatch = currentTex.equals(previousTex);
 
         if (texturesMatch || t >= 1.0f) {
-            RenderSystem.setShaderTexture(unit, currentTex);
+            original.call(unit, currentTex);
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
         } else if (t < 0.5f) {
-            RenderSystem.setShaderTexture(unit, previousTex);
+            original.call(unit, previousTex);
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f - (t * 2f));
         } else {
-            RenderSystem.setShaderTexture(unit, currentTex);
+            original.call(unit, currentTex);
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, (t - 0.5f) * 2f);
         }
     }
@@ -101,7 +83,7 @@ public class LevelRendererMixin {
         return vanillaTexture;
     }
 
-    @Redirect(
+    @WrapOperation(
             method = "tickRain",
             at = @At(
                     value = "INVOKE",
@@ -112,18 +94,19 @@ public class LevelRendererMixin {
             ClientLevel level,
             ParticleOptions options,
             double x, double y, double z,
-            double dx, double dy, double dz
+            double dx, double dy, double dz,
+            Operation<Void> original
     ) {
         WeatherTypes type = ClientWeatherState.getCurrentWeather();
 
         if (type == WeatherTypes.HAIL) return;
 
         if (type == WeatherTypes.FREEZING_RAIN && options == ParticleTypes.RAIN) {
-            level.addParticle(AWParticles.FREEZING_RAIN.get(), x, y, z, dx, dy, dz);
+            original.call(level, AWParticles.FREEZING_RAIN.get(), x, y, z, dx, dy, dz);
             return;
         }
 
-        level.addParticle(options, x, y, z, dx, dy, dz);
+        original.call(level, options, x, y, z, dx, dy, dz);
     }
 
     @Inject(
@@ -158,7 +141,7 @@ public class LevelRendererMixin {
             double y = pos.getY() + 0.1D;
             double z = pos.getZ() + level.random.nextDouble();
 
-            level.addParticle(AWParticles.HAIL_DROP.get(), x, y, z, 0.0D, -0.5D, 0.0D);
+            level.addParticle(AWParticles.HAIL_DROP.get(), x, y, z, 0.0D, 0.0D, 0.0D);
 
             BlockPos impactPos = pos.below();
             BlockState state = level.getBlockState(impactPos);
@@ -241,75 +224,5 @@ public class LevelRendererMixin {
             case SNOW -> original * 1.5f;
             default -> original;
         };
-    }
-
-    @Inject(method = "renderSnowAndRain", at = @At("HEAD"))
-    private void advancedweather$renderLavaRain(LightTexture lightTexture, float partialTick,
-                                                double camX, double camY, double camZ, CallbackInfo ci) {
-        if (ClientWeatherState.getCurrentWeather() != WeatherTypes.LAVA_RAIN) return;
-
-        Minecraft mc = Minecraft.getInstance();
-        Level level = mc.level;
-        if (level == null) return;
-
-        final float intensity = 1.0f;
-
-        lightTexture.turnOnLightLayer();
-        int i = Mth.floor(camX);
-        int j = Mth.floor(camY);
-        int k = Mth.floor(camZ);
-        Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder buffer = null;
-        RenderSystem.disableCull();
-        RenderSystem.enableBlend();
-        RenderSystem.enableDepthTest();
-        int l = Minecraft.useFancyGraphics() ? 10 : 5;
-        RenderSystem.depthMask(Minecraft.useShaderTransparency());
-        RenderSystem.setShader(GameRenderer::getParticleShader);
-
-        for (int cz = k - l; cz <= k + l; cz++) {
-            for (int cx = i - l; cx <= i + l; cx++) {
-                int idx = (cz - k + 16) * 32 + cx - i + 16;
-                double dX = (double) this.rainSizeX[idx] * 0.5;
-                double dZ = (double) this.rainSizeZ[idx] * 0.5;
-
-                int bottom = j - l;
-                int top = j + l;
-
-                RandomSource rng = RandomSource.create((long) cx * cx * 3121 + cx * 45238971L ^ (long) cz * cz * 418711 + cz * 13761L);
-
-                if (buffer == null) {
-                    RenderSystem.setShaderTexture(0, LAVA_RAIN_LOCATION);
-                    buffer = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-                }
-
-                int scroll = this.ticks & 131071;
-                int phase = (cx * cx * 3121 + cx * 45238971 + cz * cz * 418711 + cz * 13761) & 0xFF;
-                float speed = 3.0F + rng.nextFloat();
-                float v = (-((float) (scroll + phase) + partialTick) / 32.0F * speed) % 32.0F;
-                double relX = (double) cx + 0.5 - camX;
-                double relZ = (double) cz + 0.5 - camZ;
-                float dist = (float) Math.sqrt(relX * relX + relZ * relZ) / (float) l;
-                float a = ((1.0F - dist * dist) * 0.5F + 0.5F) * intensity;
-                int light = LightTexture.FULL_BRIGHT;
-
-                buffer.addVertex((float) ((double) cx - camX - dX + 0.5), (float) ((double) top - camY), (float) ((double) cz - camZ - dZ + 0.5))
-                        .setUv(0.0F, (float) bottom * 0.25F + v).setColor(1.0F, 1.0F, 1.0F, a).setLight(light);
-                buffer.addVertex((float) ((double) cx - camX + dX + 0.5), (float) ((double) top - camY), (float) ((double) cz - camZ + dZ + 0.5))
-                        .setUv(1.0F, (float) bottom * 0.25F + v).setColor(1.0F, 1.0F, 1.0F, a).setLight(light);
-                buffer.addVertex((float) ((double) cx - camX + dX + 0.5), (float) ((double) bottom - camY), (float) ((double) cz - camZ + dZ + 0.5))
-                        .setUv(1.0F, (float) top * 0.25F + v).setColor(1.0F, 1.0F, 1.0F, a).setLight(light);
-                buffer.addVertex((float) ((double) cx - camX - dX + 0.5), (float) ((double) bottom - camY), (float) ((double) cz - camZ - dZ + 0.5))
-                        .setUv(0.0F, (float) top * 0.25F + v).setColor(1.0F, 1.0F, 1.0F, a).setLight(light);
-            }
-        }
-
-        if (buffer != null) {
-            BufferUploader.drawWithShader(buffer.buildOrThrow());
-        }
-
-        RenderSystem.enableCull();
-        RenderSystem.disableBlend();
-        lightTexture.turnOffLightLayer();
     }
 }

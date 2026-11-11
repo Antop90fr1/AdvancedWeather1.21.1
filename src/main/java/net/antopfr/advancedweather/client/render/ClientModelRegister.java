@@ -22,7 +22,6 @@ public class ClientModelRegister {
         event.register(InstrumentItemRenderer.ANEMOMETER_CUPS);
 
         event.register(SensorBlockRenderer.NEEDLE);
-        event.register(SensorBlockRenderer.ANEMOMETER_ROTOR);
     }
 
     @SubscribeEvent

@@ -1,6 +1,7 @@
 package net.antopfr.advancedweather.content.block.calibration;
 
 import net.antopfr.advancedweather.network.toserver.CommitCalibrationPacket;
+import net.antopfr.advancedweather.util.Key;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -96,7 +97,7 @@ public abstract class CalibrationScreen extends Screen {
         int fill = (int) (barW * progress);
         int col = progress >= 1f ? 0xFF33CC44 : 0xFF67CFDB;
         g.fill(barX, barY, barX + fill, barY + 8, col);
-        g.drawCenteredString(font, "§7Calibration", x + PANEL_W / 2, barY - 12, 0xAAAAAA);
+        g.drawCenteredString(font, "§7" + Key.t("advancedweather.calibration.title"), x + PANEL_W / 2, barY - 12, 0xAAAAAA);
     }
 
     private void commit() {

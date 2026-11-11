@@ -2,6 +2,7 @@ package net.antopfr.advancedweather.content.block.detector;
 
 import net.antopfr.advancedweather.AdvancedWeather;
 import net.antopfr.advancedweather.network.toserver.SetDetectorModePacket;
+import net.antopfr.advancedweather.util.Key;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
@@ -18,17 +19,24 @@ public class WeatherDetectorScreen extends Screen {
 
     private final BlockPos pos;
     private final WeatherDetectorBlock.DetectionMode current;
+    private boolean early;
     private float openProgress = 0f;
     private int hoveredIndex = -1;
+    private boolean hoveredEarly;
 
-    public WeatherDetectorScreen(BlockPos pos, WeatherDetectorBlock.DetectionMode current) {
-        super(Component.literal("Weather Detector"));
+    public WeatherDetectorScreen(BlockPos pos, WeatherDetectorBlock.DetectionMode current, boolean early) {
+        super(Component.translatable("block.advancedweather.weather_detector"));
         this.pos = pos;
         this.current = current;
+        this.early = early;
     }
 
     private int panelHeight() {
-        return HEADER_H + WeatherDetectorBlock.DetectionMode.values().length * ROW_H + 8;
+        return HEADER_H + (WeatherDetectorBlock.DetectionMode.values().length + 1) * ROW_H + 12;
+    }
+
+    private boolean earlyApplies() {
+        return current != WeatherDetectorBlock.DetectionMode.WIND;
     }
 
     @Override
@@ -46,7 +54,7 @@ public class WeatherDetectorScreen extends Screen {
 
         g.fill(x, y, x + PANEL_W, y + panelH, ((int) (ease * 0xE0) << 24) | 0x101418);
         g.fill(x, y, x + PANEL_W, y + HEADER_H, (alpha << 24) | 0x1E2630);
-        g.drawCenteredString(font, "§lDetection Mode", x + PANEL_W / 2, y + 6, withAlpha(0xFFFFFF, alpha));
+        g.drawCenteredString(font, "§l" + Key.t("advancedweather.detector.title"), x + PANEL_W / 2, y + 6, withAlpha(0xFFFFFF, alpha));
 
         WeatherDetectorBlock.DetectionMode[] modes = WeatherDetectorBlock.DetectionMode.values();
         hoveredIndex = -1;
@@ -77,15 +85,45 @@ public class WeatherDetectorScreen extends Screen {
                 g.drawString(font, "●", x + PANEL_W - 16, rowY + 5, withAlpha(0x7FD4FF, alpha), true);
             }
         }
+
+        int earlyY = y + HEADER_H + 8 + modes.length * ROW_H;
+        g.fill(x + 8, earlyY - 3, x + PANEL_W - 8, earlyY - 2, withAlpha(0x30404C, alpha));
+
+        boolean usable = earlyApplies();
+        hoveredEarly = usable && mouseX >= x + 4 && mouseX < x + PANEL_W - 4
+                && mouseY >= earlyY && mouseY < earlyY + ROW_H;
+        if (hoveredEarly) {
+            g.fill(x + 4, earlyY, x + PANEL_W - 4, earlyY + ROW_H - 2, ((int) (ease * 0x50) << 24) | 0x30404C);
+        }
+
+        boolean on = early && usable;
+        int box = usable ? (on ? 0x7FD4FF : 0xAAAAAA) : 0x555555;
+        g.fill(x + 11, rowYCenter(earlyY) - 5, x + 21, rowYCenter(earlyY) + 5, withAlpha(box, alpha));
+        g.fill(x + 12, rowYCenter(earlyY) - 4, x + 20, rowYCenter(earlyY) + 4, withAlpha(0x101418, alpha));
+        if (on) g.fill(x + 14, rowYCenter(earlyY) - 2, x + 18, rowYCenter(earlyY) + 2, withAlpha(box, alpha));
+
+        String earlyLabel = Component.translatable(
+                "advancedweather.detector.early." + (on ? "on" : "off")).getString();
+        int earlyColor = !usable ? 0x555555 : on ? 0x7FD4FF : hoveredEarly ? 0xFFFFFF : 0xAAAAAA;
+        g.drawString(font, earlyLabel, x + 30, earlyY + 6, withAlpha(earlyColor, alpha), true);
+    }
+
+    private static int rowYCenter(int rowY) {
+        return rowY + (ROW_H - 2) / 2;
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && hoveredEarly) {
+            early = !early;
+            PacketDistributor.sendToServer(new SetDetectorModePacket(pos, current, early));
+            return true;
+        }
         if (button == 0 && hoveredIndex >= 0) {
             WeatherDetectorBlock.DetectionMode selected = WeatherDetectorBlock.DetectionMode.values()[hoveredIndex];
             if (selected != current) {
                 PacketDistributor.sendToServer(
-                        new SetDetectorModePacket(pos, selected));
+                        new SetDetectorModePacket(pos, selected, early));
             }
             onClose();
             return true;

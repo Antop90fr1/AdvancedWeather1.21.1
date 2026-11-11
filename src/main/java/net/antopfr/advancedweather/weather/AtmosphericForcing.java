@@ -8,31 +8,30 @@ public class AtmosphericForcing {
         NONE, SEEDING, DISSIPATING, COOLING, HEATING
     }
 
-    private final float pressurePushPerTick;
-    private final float dewPointPushPerTick;
+    private static final int RAMP_TICKS = 100;
+    private static final float FADE_SHARE = 0.35f;
+
+    private final float pressureOffset;
+    private final float dewPointOffset;
     private final float tempOffset;
     private final Bias bias;
     private int remainingTicks;
     private final int totalTicks;
 
-    public AtmosphericForcing(float totalPressurePush, float totalDewPointPush,
+    public AtmosphericForcing(float pressureOffset, float dewPointOffset,
                               float tempOffset, int durationTicks, Bias bias) {
-        this.totalTicks = Math.max(1, durationTicks);
-        this.pressurePushPerTick = totalPressurePush / this.totalTicks;
-        this.dewPointPushPerTick = totalDewPointPush / this.totalTicks;
-        this.tempOffset = tempOffset;
-        this.bias = bias != null ? bias : Bias.NONE;
-        this.remainingTicks = this.totalTicks;
+        this(pressureOffset, dewPointOffset, tempOffset, bias,
+                Math.max(1, durationTicks), Math.max(1, durationTicks));
     }
 
-    private AtmosphericForcing(float pPerTick, float dpPerTick, float tempOffset,
+    private AtmosphericForcing(float pressureOffset, float dewPointOffset, float tempOffset,
                                Bias bias, int remaining, int total) {
-        this.pressurePushPerTick = pPerTick;
-        this.dewPointPushPerTick = dpPerTick;
+        this.pressureOffset = pressureOffset;
+        this.dewPointOffset = dewPointOffset;
         this.tempOffset = tempOffset;
-        this.bias = bias;
+        this.bias = bias != null ? bias : Bias.NONE;
         this.remainingTicks = remaining;
-        this.totalTicks = total;
+        this.totalTicks = Math.max(1, total);
     }
 
     public boolean tick() {
@@ -40,49 +39,63 @@ public class AtmosphericForcing {
         return remainingTicks > 0;
     }
 
-    public float pressurePushPerTick() { return pressurePushPerTick; }
-    public float dewPointPushPerTick() { return dewPointPushPerTick; }
+    public float pressureOffset() { return pressureOffset; }
+    public float dewPointOffset() { return dewPointOffset; }
+    public float tempOffset() { return tempOffset; }
     public Bias bias() { return bias; }
+    public int remainingTicks() { return remainingTicks; }
 
-    public float currentTempOffset() {
-        float fadeStart = totalTicks * 0.2f;
-        if (remainingTicks < fadeStart) {
-            return tempOffset * (remainingTicks / fadeStart);
-        }
-        return tempOffset;
+    public float strength() { return strengthIn(0); }
+
+    public float strengthIn(int ticksAhead) {
+        int remaining = remainingTicks - ticksAhead;
+        if (remaining <= 0) return 0f;
+
+        int ramp = Math.min(RAMP_TICKS, Math.max(1, totalTicks / 4));
+        float in = Math.min(1f, (totalTicks - remaining + 1) / (float) ramp);
+        float out = Math.min(1f, remaining / Math.max(1f, totalTicks * FADE_SHARE));
+        return Math.min(in, out);
+    }
+
+    public AtmosphericForcing advanced(int ticks) {
+        int remaining = remainingTicks - ticks;
+        if (remaining <= 0) return null;
+        return new AtmosphericForcing(pressureOffset, dewPointOffset, tempOffset, bias, remaining, totalTicks);
     }
 
     public static float biasModifier(WeatherTypes target, AtmosphericForcing.Bias bias) {
         return switch (bias) {
             case SEEDING -> switch (target) {
-                case LIGHT_RAIN, HEAVY_RAIN, DRIZZLE, THUNDERSTORM, OVERCAST -> 2.2f;
+                case LIGHT_RAIN, HEAVY_RAIN, DRIZZLE, THUNDERSTORM, OVERCAST, SNOW -> 2.2f;
                 case CLEAR, SUNNY -> 0.4f;
                 default -> 1f;
             };
             case DISSIPATING -> switch (target) {
                 case CLEAR, SUNNY -> 2.2f;
-                case LIGHT_RAIN, HEAVY_RAIN, THUNDERSTORM, OVERCAST, DRIZZLE -> 0.4f;
+                case LIGHT_RAIN, HEAVY_RAIN, THUNDERSTORM, OVERCAST, DRIZZLE,
+                     SNOW, BLIZZARD, FREEZING_RAIN, HAIL -> 0.4f;
                 default -> 1f;
             };
             case COOLING -> switch (target) {
-                case SNOW, FREEZING_RAIN, BLIZZARD -> 24.0f;
+                case SNOW, FREEZING_RAIN, BLIZZARD -> 3.0f;
+                case HAIL -> 1.5f;
+                case THUNDERSTORM, SANDSTORM -> 0.5f;
                 default -> 1f;
             };
             case HEATING -> switch (target) {
-                case SUNNY, CLEAR -> 4.3f;
-                case SNOW, BLIZZARD, FREEZING_RAIN -> 0.3f;
+                case SNOW, BLIZZARD, FREEZING_RAIN -> 0.2f;
+                case THUNDERSTORM -> 1.8f;
+                case FOG, DENSE_FOG, MIST -> 0.5f;
                 default -> 1f;
             };
             case NONE -> 1f;
         };
     }
 
-    public int remainingTicks() { return remainingTicks; }
-
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
-        tag.putFloat("pPush", pressurePushPerTick);
-        tag.putFloat("dpPush", dewPointPushPerTick);
+        tag.putFloat("pOffset", pressureOffset);
+        tag.putFloat("dpOffset", dewPointOffset);
         tag.putFloat("tempOff", tempOffset);
         tag.putString("bias", bias.name());
         tag.putInt("remaining", remainingTicks);
@@ -97,7 +110,7 @@ public class AtmosphericForcing {
             catch (IllegalArgumentException ignored) {}
         }
         return new AtmosphericForcing(
-                tag.getFloat("pPush"), tag.getFloat("dpPush"), tag.getFloat("tempOff"),
+                tag.getFloat("pOffset"), tag.getFloat("dpOffset"), tag.getFloat("tempOff"),
                 bias, tag.getInt("remaining"), tag.getInt("total"));
     }
 }

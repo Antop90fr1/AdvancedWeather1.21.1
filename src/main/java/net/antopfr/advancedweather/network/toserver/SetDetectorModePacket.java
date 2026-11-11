@@ -12,16 +12,16 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
 
-public record SetDetectorModePacket(BlockPos pos, WeatherDetectorBlock.DetectionMode mode)
+public record SetDetectorModePacket(BlockPos pos, WeatherDetectorBlock.DetectionMode mode, boolean early)
         implements CustomPacketPayload {
 
     public static final Type<SetDetectorModePacket> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath(AdvancedWeather.MOD_ID, "set_detector_mode"));
 
     public static final StreamCodec<FriendlyByteBuf, SetDetectorModePacket> CODEC = StreamCodec.of(
-            (buf, pkt) -> { buf.writeBlockPos(pkt.pos); buf.writeEnum(pkt.mode); },
+            (buf, pkt) -> { buf.writeBlockPos(pkt.pos); buf.writeEnum(pkt.mode); buf.writeBoolean(pkt.early); },
             buf -> new SetDetectorModePacket(buf.readBlockPos(),
-                    buf.readEnum(WeatherDetectorBlock.DetectionMode.class)));
+                    buf.readEnum(WeatherDetectorBlock.DetectionMode.class), buf.readBoolean()));
 
     @Override
     public @NotNull Type<? extends CustomPacketPayload> type() { return TYPE; }
@@ -33,7 +33,8 @@ public record SetDetectorModePacket(BlockPos pos, WeatherDetectorBlock.Detection
             BlockState state = level.getBlockState(pkt.pos());
             if (!(state.getBlock() instanceof WeatherDetectorBlock)) return;
 
-            level.setBlock(pkt.pos(), state.setValue(WeatherDetectorBlock.MODE, pkt.mode()), 3);
+            level.setBlock(pkt.pos(), state.setValue(WeatherDetectorBlock.MODE, pkt.mode())
+                    .setValue(WeatherDetectorBlock.EARLY, pkt.early()), 3);
             level.scheduleTick(pkt.pos(), state.getBlock(), 1);
         });
     }

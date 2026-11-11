@@ -24,12 +24,15 @@ public class SeedingRocketEntity extends Projectile {
     private static final EntityDataAccessor<Integer> DATA_BIAS =
             SynchedEntityData.defineId(SeedingRocketEntity.class, EntityDataSerializers.INT);
 
+    private static final int DEFAULT_FORCING_TICKS = 2400;
+
     private int life;
     private int lifetime;
 
     private float pressurePush = -18f;
     private float dewPointPush = 8f;
     private float tempOffset = 0f;
+    private int forcingTicks = DEFAULT_FORCING_TICKS;
 
     public SeedingRocketEntity(EntityType<? extends SeedingRocketEntity> type, Level level) {
         super(type, level);
@@ -37,7 +40,7 @@ public class SeedingRocketEntity extends Projectile {
 
     public SeedingRocketEntity(Level level, double x, double y, double z,
                                AtmosphericForcing.Bias bias,
-                               float pressurePush, float dewPointPush, float tempOffset) {
+                               float pressurePush, float dewPointPush, float tempOffset, int forcingTicks) {
         this(AWEntities.SEEDING_ROCKET.get(), level);
         this.life = 0;
         setPos(x, y, z);
@@ -45,6 +48,7 @@ public class SeedingRocketEntity extends Projectile {
         this.pressurePush = pressurePush;
         this.dewPointPush = dewPointPush;
         this.tempOffset = tempOffset;
+        this.forcingTicks = forcingTicks;
 
         this.setDeltaMovement(this.random.triangle(0.0, 0.002297), 0.05,
                 this.random.triangle(0.0, 0.002297));
@@ -107,7 +111,7 @@ public class SeedingRocketEntity extends Projectile {
         ServerLevel serverLevel = (ServerLevel) level();
 
         WeatherManager.get(serverLevel).seed(
-                serverLevel, getBias(), pressurePush, dewPointPush, tempOffset, 1200);
+                serverLevel, getBias(), pressurePush, dewPointPush, tempOffset, forcingTicks);
 
         serverLevel.playSound(null, getX(), getY(), getZ(),
                 SoundEvents.AMETHYST_BLOCK_BREAK, SoundSource.AMBIENT, 3f, 0.8f);
@@ -138,6 +142,7 @@ public class SeedingRocketEntity extends Projectile {
         this.pressurePush = tag.getFloat("pPush");
         this.dewPointPush = tag.getFloat("dpPush");
         this.tempOffset = tag.getFloat("tempOff");
+        this.forcingTicks = tag.contains("forcingTicks") ? tag.getInt("forcingTicks") : DEFAULT_FORCING_TICKS;
         this.entityData.set(DATA_BIAS, tag.getInt("bias"));
     }
 
@@ -148,6 +153,7 @@ public class SeedingRocketEntity extends Projectile {
         tag.putFloat("pPush", this.pressurePush);
         tag.putFloat("dpPush", this.dewPointPush);
         tag.putFloat("tempOff", this.tempOffset);
+        tag.putInt("forcingTicks", this.forcingTicks);
         tag.putInt("bias", this.entityData.get(DATA_BIAS));
     }
 }

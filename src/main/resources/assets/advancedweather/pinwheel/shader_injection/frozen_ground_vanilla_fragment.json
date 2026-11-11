@@ -1,0 +1,11 @@
+{
+  "target": [
+    "minecraft:shaders/core/rendertype_solid.fsh",
+    "minecraft:shaders/core/rendertype_cutout.fsh",
+    "minecraft:shaders/core/rendertype_cutout_mipped.fsh"
+  ],
+  "redirect": [
+    "advancedweather:frozen_ground_vanilla_fragment.glsl"
+  ],
+  "priority": 900
+}

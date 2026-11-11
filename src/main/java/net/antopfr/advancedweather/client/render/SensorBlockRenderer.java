@@ -6,6 +6,7 @@ import net.antopfr.advancedweather.AdvancedWeather;
 import net.antopfr.advancedweather.client.state.ClientAtmosphereState;
 import net.antopfr.advancedweather.content.block.sensor.IWeatherSensor;
 import net.antopfr.advancedweather.weather.AtmosphericSystem;
+import net.antopfr.advancedweather.weather.wind.WindField;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.Sheets;
@@ -23,7 +24,6 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 public class SensorBlockRenderer<T extends BlockEntity & IWeatherSensor> implements BlockEntityRenderer<T> {
 
     public static final ModelResourceLocation NEEDLE = mrl("needle");
-    public static final ModelResourceLocation ANEMOMETER_ROTOR = mrl("anemometer_rotor");
 
     private static ModelResourceLocation mrl(String name) {
         return ModelResourceLocation.standalone(
@@ -66,11 +66,8 @@ public class SensorBlockRenderer<T extends BlockEntity & IWeatherSensor> impleme
                 renderNeedle(Mth.lerp(h, -135f, 135f), pose, buffers, light, overlay);
             }
             case ANEMOMETER -> {
-//                float wind = ClientAtmosphereState.getWindIntensity();
-//                float spin = (AnimationTickHolder.getRenderTime(level) * (2f + wind * 22f)) % 360f;
-//                renderRotor(spin, pose, buffers, light, overlay);
-
-                float wind = ClientAtmosphereState.getWindIntensity();
+                float wind = Math.min(1f, WindField.sample(level,
+                        pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, partialTick).intensity());
                 renderNeedle(Mth.lerp(wind, -135f, 135f), pose, buffers, light, overlay);
             }
         }
@@ -89,17 +86,6 @@ public class SensorBlockRenderer<T extends BlockEntity & IWeatherSensor> impleme
         pose.translate(-PIVOT_REL_X, -PIVOT_REL_Y, -PIVOT_REL_Z);
         pose.translate(-0.5f, -0.5f, -0.5f);
         Minecraft.getInstance().getItemRenderer().renderModelLists(baked, ItemStack.EMPTY, light, overlay, pose, buffers.getBuffer(Sheets.cutoutBlockSheet()));
-        pose.popPose();
-    }
-
-    private void renderRotor(float degrees, PoseStack pose,
-                             MultiBufferSource buffers, int light, int overlay) {
-        BakedModel baked = Minecraft.getInstance().getModelManager().getModel(ANEMOMETER_ROTOR);
-        pose.pushPose();
-        pose.mulPose(Axis.YP.rotationDegrees(degrees));
-        pose.translate(-0.5, -0.5, -0.5);
-        Minecraft.getInstance().getItemRenderer().renderModelLists(baked, ItemStack.EMPTY,
-                light, overlay, pose, buffers.getBuffer(Sheets.cutoutBlockSheet()));
         pose.popPose();
     }
 }

@@ -1,6 +1,5 @@
 package net.antopfr.advancedweather.mixin;
 
-import net.antopfr.advancedweather.weather.WeatherTypes;
 import net.antopfr.advancedweather.util.BiomeMixinContext;
 import net.antopfr.advancedweather.weather.WeatherManager;
 import net.minecraft.core.BlockPos;
@@ -21,11 +20,7 @@ public class BiomeMixin {
         ServerLevel level = BiomeMixinContext.getCurrentLevel();
         if (level == null) return;
 
-        WeatherTypes type = WeatherManager.get(level).getCurrentWeather(level);
-        if (type == WeatherTypes.SNOW || type == WeatherTypes.BLIZZARD) {
-            cir.setReturnValue(Biome.Precipitation.SNOW);
-        } else if (type == WeatherTypes.FREEZING_RAIN) {
-            cir.setReturnValue(Biome.Precipitation.RAIN);
-        }
+        Biome.Precipitation falling = WeatherManager.get(level).getCurrentWeather(level).precipitation();
+        if (falling != Biome.Precipitation.NONE) cir.setReturnValue(falling);
     }
 }

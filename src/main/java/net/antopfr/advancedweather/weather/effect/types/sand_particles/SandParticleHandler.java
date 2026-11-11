@@ -5,7 +5,7 @@ import net.antopfr.advancedweather.config.AWClientConfig;
 import net.antopfr.advancedweather.client.particle.AWParticles;
 import net.antopfr.advancedweather.util.PlayerChecks;
 import net.antopfr.advancedweather.weather.WeatherEffects;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindDirection;
+import net.antopfr.advancedweather.client.wind.ClientWind;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -36,7 +36,11 @@ public class SandParticleHandler {
         tickCounter++;
         if (tickCounter % config.sandTickInterval != 0) return;
 
+        blow(mc, 1f);
+    }
 
+    public static void blow(Minecraft mc, float share) {
+        AWClientConfig config = AWClientConfig.get();
         Player player = mc.player;
         double px = player.getX();
         double py = player.getY();
@@ -55,11 +59,12 @@ public class SandParticleHandler {
                         : isDesert ? AWParticles.SAND_PARTICLE.get()
                         : null;
 
-        Vec3 wind = WindDirection.get(0f);
+        Vec3 wind = ClientWind.direction();
+        double surge = ClientWind.surge();
         double windX = wind.x;
         double windZ = wind.z;
 
-        int count = config.sandCount;
+        int count = Math.round(config.sandCount * share);
         float spawnDist = (float) config.sandSpawnDist;
 
         for (int i = 0; i < count; i++) {
@@ -67,8 +72,8 @@ public class SandParticleHandler {
             double oy = (mc.level.random.nextDouble() * 2 - 0.5) * config.sandHeightSpread;
             double oz = -windZ * spawnDist + (mc.level.random.nextDouble() - 0.5) * config.sandSpread;
 
-            double dx = wind.x * config.sandWindSpeed;
-            double dz = wind.z * config.sandWindSpeed;
+            double dx = wind.x * config.sandWindSpeed * surge;
+            double dz = wind.z * config.sandWindSpeed * surge;
             if (particle != null) {
                 mc.level.addParticle(
                         particle,

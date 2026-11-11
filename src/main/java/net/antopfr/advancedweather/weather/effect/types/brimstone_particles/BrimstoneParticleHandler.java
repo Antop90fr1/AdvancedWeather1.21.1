@@ -5,7 +5,7 @@ import net.antopfr.advancedweather.client.state.ClientWeatherState;
 import net.antopfr.advancedweather.config.AWClientConfig;
 import net.antopfr.advancedweather.util.PlayerChecks;
 import net.antopfr.advancedweather.weather.WeatherEffects;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindDirection;
+import net.antopfr.advancedweather.client.wind.ClientWind;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -36,7 +36,8 @@ public class BrimstoneParticleHandler {
         double py = player.getY() + 1.0;
         double pz = player.getZ();
 
-        Vec3 wind = WindDirection.get(0f);
+        Vec3 wind = ClientWind.direction();
+        double surge = ClientWind.surge();
         double windX = -wind.x;
         double windZ = -wind.z;
 
@@ -48,9 +49,9 @@ public class BrimstoneParticleHandler {
             double oy = mc.level.random.nextDouble() * config.brimstoneHeightSpread - 2;
             double oz = windZ * spawnDist + (mc.level.random.nextDouble() - 0.5) * config.brimstoneSpread;
 
-            double dx = -windX * config.brimstoneWindSpeed + (mc.level.random.nextDouble() - 0.5) * 0.02;
+            double dx = -windX * config.brimstoneWindSpeed * surge + (mc.level.random.nextDouble() - 0.5) * 0.02;
             double dy = -0.005 + (mc.level.random.nextDouble() - 0.5) * 0.005;
-            double dz = -windZ * config.brimstoneWindSpeed + (mc.level.random.nextDouble() - 0.5) * 0.02;
+            double dz = -windZ * config.brimstoneWindSpeed * surge + (mc.level.random.nextDouble() - 0.5) * 0.02;
 
             mc.level.addParticle(
                     AWParticles.BRIMSTONE_DUST.get(),

@@ -1,6 +1,7 @@
 package net.antopfr.advancedweather.mixin;
 
 import net.antopfr.advancedweather.weather.LocalAtmosphere;
+import net.antopfr.advancedweather.weather.SnowMelt;
 import net.antopfr.advancedweather.weather.WeatherTypes;
 import net.antopfr.advancedweather.weather.WeatherManager;
 import net.minecraft.core.BlockPos;
@@ -36,7 +37,9 @@ public class IceBlockMixin {
         float localTemperature = LocalAtmosphere.getLocalTemperature(level, pos);
 
         if (localTemperature > 0f) {
-            ((IceBlockAccessor) this).invokeMelt(state, level, pos);
+            if (random.nextFloat() < SnowMelt.perRandomTick(level, localTemperature, 0f)) {
+                ((IceBlockAccessor) this).invokeMelt(state, level, pos);
+            }
             ci.cancel();
         } else {
             int blockLight = level.getBrightness(LightLayer.BLOCK, pos);

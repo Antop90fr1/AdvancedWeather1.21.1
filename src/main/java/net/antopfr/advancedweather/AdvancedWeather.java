@@ -1,6 +1,7 @@
 package net.antopfr.advancedweather;
 
 import net.antopfr.advancedweather.compat.create.AWDisplaySources;
+import net.antopfr.advancedweather.compat.coldsweat.ColdSweatCompat;
 import net.antopfr.advancedweather.compat.sable.SableIntegration;
 import net.antopfr.advancedweather.config.AWClientConfig;
 import net.antopfr.advancedweather.config.AWCommonConfig;
@@ -17,6 +18,7 @@ import net.antopfr.advancedweather.network.*;
 import net.antopfr.advancedweather.client.particle.AWParticles;
 import net.antopfr.advancedweather.client.sound.AWSounds;
 import net.antopfr.advancedweather.server.command.AWCommand;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.antopfr.advancedweather.util.ModLoaded;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -54,7 +56,7 @@ public class AdvancedWeather {
     }
 
     public void onCommonSetup(FMLCommonSetupEvent event) {
-        AWClientConfig.init();
+        if (FMLEnvironment.dist.isClient()) AWClientConfig.init();
         AWCommonConfig.init();
 
         event.enqueueWork(CauldronInteractionsEvent::register);
@@ -62,5 +64,7 @@ public class AdvancedWeather {
         if (ModLoaded.isCreateLoaded()) {
             event.enqueueWork(AWDisplaySources::associateWithBlock);
         }
+
+        event.enqueueWork(ColdSweatCompat::register);
     }
 }

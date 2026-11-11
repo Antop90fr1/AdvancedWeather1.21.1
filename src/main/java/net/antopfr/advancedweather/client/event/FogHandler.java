@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -25,8 +26,9 @@ public class FogHandler {
         float renderDistance = event.getRenderer().getRenderDistance();
 
         if (mc.level.dimension().equals(Level.END)) {
-            event.setNearPlaneDistance(renderDistance);
-            event.setFarPlaneDistance(renderDistance * 10f);
+            float haze = ClientWeatherState.presence(WeatherTypes.CHORUS_GALE, (float) event.getPartialTick());
+            event.setNearPlaneDistance(Mth.lerp(haze, renderDistance, 12f));
+            event.setFarPlaneDistance(Mth.lerp(haze, renderDistance * 10f, Math.min(renderDistance, 160f)));
             event.setCanceled(true);
             return;
         }

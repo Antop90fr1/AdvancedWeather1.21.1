@@ -2,10 +2,11 @@ package net.antopfr.advancedweather.content.item;
 
 import net.antopfr.advancedweather.client.render.AWClientRenderers;
 import net.antopfr.advancedweather.client.state.ClientAtmosphereState;
+import net.antopfr.advancedweather.util.Key;
 import net.antopfr.advancedweather.util.UnitFormat;
 import net.antopfr.advancedweather.util.ValueColors;
 import net.antopfr.advancedweather.weather.FeelsLikeCalculation;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindSpeedCalculation;
+import net.antopfr.advancedweather.client.wind.ClientWind;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.network.chat.Component;
@@ -32,21 +33,7 @@ public class ThermometerItem extends Item {
     @Override
     public @NotNull InteractionResultHolder<ItemStack> use(Level level, @NotNull Player player, @NotNull InteractionHand hand) {
         if (level.isClientSide) {
-            float temp = ClientAtmosphereState.getLocalTemperature();
-            float hum = ClientAtmosphereState.getLocalHumidity();
-            float windKmh = WindSpeedCalculation.getWindSpeed();
-
-            float feelsLike = FeelsLikeCalculation.calculate(temp, windKmh, hum);
-            String comfort = FeelsLikeCalculation.getComfortLabel(feelsLike);
-
-            int rgbColor = ValueColors.temperature(temp) & 0xFFFFFF;
-
-            MutableComponent prefix = Component.literal("§7Temperature: ");
-            MutableComponent tempValue = Component.literal(UnitFormat.temperature(temp))
-                    .withStyle(style -> style.withColor(TextColor.fromRgb(rgbColor)));
-            MutableComponent suffix = Component.literal(String.format(" §7| §f[%s]", comfort));
-
-            player.displayClientMessage(prefix.append(tempValue).append(suffix), true);
+            player.displayClientMessage(readout(" §7| §f[%s]"), true);
         }
         return InteractionResultHolder.sidedSuccess(player.getItemInHand(hand), level.isClientSide);
     }
@@ -55,29 +42,38 @@ public class ThermometerItem extends Item {
     public void appendHoverText(@NotNull ItemStack stack, @NotNull TooltipContext context,
                                 @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
         if (Minecraft.getInstance().level != null) {
-            float temp = ClientAtmosphereState.getLocalTemperature();
-            float hum = ClientAtmosphereState.getLocalHumidity();
-            float windKmh = WindSpeedCalculation.getWindSpeed();
-
-            float feelsLike = FeelsLikeCalculation.calculate(temp, windKmh, hum);
-            String comfort = FeelsLikeCalculation.getComfortLabel(feelsLike);
-
-            int rgbColor = ValueColors.temperature(temp) & 0xFFFFFF;
-
-            MutableComponent prefix = Component.literal("§7Temperature: ");
-            MutableComponent tempValue = Component.literal(UnitFormat.temperature(temp))
-                    .withStyle(style -> style.withColor(TextColor.fromRgb(rgbColor)));
-            MutableComponent suffix = Component.literal(String.format(" §7(%s)", comfort));
-
-            tooltip.add(prefix.append(tempValue).append(suffix));
+            tooltip.add(readout(" §7(%s)"));
         }
+    }
+
+    private static MutableComponent readout(String comfortFormat) {
+        float temp = ClientAtmosphereState.getLocalTemperature();
+        float hum = ClientAtmosphereState.getLocalHumidity();
+        float windKmh = ClientWind.localKmh();
+
+        float feelsLike = FeelsLikeCalculation.calculate(temp, windKmh, hum);
+        String comfort = FeelsLikeCalculation.getComfortLabel(feelsLike);
+
+        MutableComponent line = Component.literal("§7" + Key.label("advancedweather.temperature"))
+                .append(Component.literal(UnitFormat.temperature(temp))
+                        .withStyle(style -> style.withColor(
+                                TextColor.fromRgb(ValueColors.temperature(temp) & 0xFFFFFF))));
+
+        if (Math.abs(feelsLike - temp) >= 1.0f) {
+            line.append(Component.literal(" §7" + Key.t("advancedweather.feelslike.label") + " "))
+                    .append(Component.literal(UnitFormat.temperature(feelsLike))
+                            .withStyle(style -> style.withColor(
+                                    TextColor.fromRgb(ValueColors.temperature(feelsLike) & 0xFFFFFF))));
+        }
+
+        return line.append(Component.literal(String.format(comfortFormat, comfort)));
     }
 
     @Override
     public void initializeClient(Consumer<IClientItemExtensions> consumer) {
         consumer.accept(new IClientItemExtensions() {
             @Override
-            public BlockEntityWithoutLevelRenderer getCustomRenderer() {
+            public @NotNull BlockEntityWithoutLevelRenderer getCustomRenderer() {
                 return AWClientRenderers.INSTRUMENT_RENDERER.get();
             }
         });

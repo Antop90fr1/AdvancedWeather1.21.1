@@ -1,5 +1,6 @@
 package net.antopfr.advancedweather.server;
 
+import net.antopfr.advancedweather.api.WeatherForecast;
 import net.antopfr.advancedweather.api.external.OpenMeteo;
 import net.antopfr.advancedweather.config.AWCommonConfig;
 import net.antopfr.advancedweather.content.advancement.AWAdvancementEvents;
@@ -17,7 +18,6 @@ import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.List;
 
 @EventBusSubscriber(modid = "advancedweather")
 public class ServerTickHandler {
@@ -26,7 +26,14 @@ public class ServerTickHandler {
     public static void onLevelTick(LevelTickEvent.Post event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
 
-        WeatherManager.get(level).tick(level);
+        WeatherManager manager = WeatherManager.get(level);
+        manager.tick(level);
+        ServerRain.update(level, manager.getCurrentWeather(level));
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+        ServerRain.clear();
     }
 
     @SubscribeEvent
@@ -85,28 +92,14 @@ public class ServerTickHandler {
     private static void syncAllToPlayer(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
         WeatherManager manager = WeatherManager.get(level);
-        WeatherTypes.Dimension dim = DimensionProfile.getDimension(level);
         AtmosphericSystem a = manager.getAtmosphere(level);
         WeatherTypes current = manager.getCurrentWeather(level);
         long time = level.getGameTime();
 
         AWAdvancementEvents.weatherExperienced(player, current);
 
-        AtmosphericSystem forecast = a.forecastState(30, time, level);
-        List<WeatherTypes> history = manager.getRecentHistory(level);
-
-        WeatherTransitionGraph.Prediction predictionNext =
-                WeatherTransitionGraph.mostLikelyNextWithWeights(current, a, dim, level, history);
-        WeatherTransitionGraph.Prediction predictionIn30 =
-                WeatherTransitionGraph.mostLikelyNextWithWeights(current, forecast, dim, level, history);
-
-        float confidenceNext = ForecastConfidence.compute(
-                predictionNext.transitions(), predictionNext.weights(), a, 0);
-        float confidenceIn30 = ForecastConfidence.compute(
-                predictionIn30.transitions(), predictionIn30.weights(), forecast, 30);
-
-        WeatherTypes predictedNext = predictionNext.type();
-        WeatherTypes predictedIn30 = predictionIn30.type();
+        AtmosphericSystem forecast = a.forecastState(30, time, level, current);
+        WeatherForecast outlook = manager.getForecast(level);
 
         PacketDistributor.sendToPlayer(player, new WeatherSyncPacket(current));
         PacketDistributor.sendToPlayer(player, new EffectSyncPacket(EffectManager.get(level).getActiveEffects()));
@@ -114,9 +107,13 @@ public class ServerTickHandler {
         PacketDistributor.sendToPlayer(player, new PressureSyncPacket(
                 a.getPressure(), a.getPressureVel(), forecast.getPressure(),
                 a.getCategory(level).name(),
-                predictedNext.name(), predictedIn30.name(),
-                a.getWindIntensity(), a.getMode().name(),
-                confidenceNext, confidenceIn30));
+                outlook.predictedNext().name(), outlook.predictedIn30Min().name(),
+                manager.getMode(level).name(),
+                outlook.confidenceNext(), outlook.confidenceIn30Min()));
+        PacketDistributor.sendToPlayer(player, WindSyncPacket.of(manager.getWindState(level)));
+        PacketDistributor.sendToPlayer(player, new RainbowSyncPacket(manager.getRainbowStart(), manager.getRainbowEnd()));
+        manager.syncGroundCover(player, true);
+        manager.syncStormApproach(player);
         PacketDistributor.sendToPlayer(player, new TemperatureSyncPacket(
                 a.getTemperature(), a.forecastTemperatureFromState(forecast, 30, time, current, level)));
         PacketDistributor.sendToPlayer(player, new HumiditySyncPacket(

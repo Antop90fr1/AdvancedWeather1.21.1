@@ -27,8 +27,8 @@ public class WeatherArchiveBlockEntity extends BlockEntity {
 
     private final List<WeatherRecord> records = new ArrayList<>();
 
-    private int predictedTypeOrdinal = -1;
-    private float predictedConfidence = 0f;
+
+    private static final long MIN_TREND_TICKS = 200;
 
     private final List<int[]> predictedTop = new ArrayList<>();
     private float confidence = 0f;
@@ -77,11 +77,22 @@ public class WeatherArchiveBlockEntity extends BlockEntity {
         return records;
     }
 
+    private boolean fromHere(WeatherRecord record) {
+        return level != null && record.dimension().equals(level.dimension().location());
+    }
+
+    private WeatherRecord lastHere() {
+        for (int i = records.size() - 1; i >= 0; i--) {
+            if (fromHere(records.get(i))) return records.get(i);
+        }
+        return null;
+    }
+
     private WeatherRecord[] lastThreeWith(java.util.function.Predicate<WeatherRecord> has) {
         WeatherRecord a = null, b = null, c = null;
         for (int i = records.size() - 1; i >= 0; i--) {
             WeatherRecord r = records.get(i);
-            if (!has.test(r)) continue;
+            if (!has.test(r) || !fromHere(r)) continue;
             if (c == null) c = r;
             else if (b == null) b = r;
             else { a = r; break; }
@@ -92,8 +103,8 @@ public class WeatherArchiveBlockEntity extends BlockEntity {
     private static float extrapolateSeries(WeatherRecord[] abc,
                                            java.util.function.ToDoubleFunction<WeatherRecord> getter, long tNext) {
         WeatherRecord a = abc[0], b = abc[1], c = abc[2];
-        long dt1 = Math.max(1, b.gameTime() - a.gameTime());
-        long dt2 = Math.max(1, c.gameTime() - b.gameTime());
+        long dt1 = Math.max(MIN_TREND_TICKS, b.gameTime() - a.gameTime());
+        long dt2 = Math.max(MIN_TREND_TICKS, c.gameTime() - b.gameTime());
         float v1 = (float) getter.applyAsDouble(a);
         float v2 = (float) getter.applyAsDouble(b);
         float v3 = (float) getter.applyAsDouble(c);
@@ -101,23 +112,35 @@ public class WeatherArchiveBlockEntity extends BlockEntity {
         return v3 + slope * (tNext - c.gameTime());
     }
 
-    public WeatherRecord computeForecastPoint() {
-        if (records.size() < AWCommonConfig.get().archiveMinRecordsForForecast) return null;
+    private float levelTemperature(WeatherRecord record) {
+        return record.temperature() - LocalAtmosphere.temperatureShift(level, record.biome(), record.pos().getY());
+    }
 
-        WeatherRecord last = records.getLast();
+    private float levelPressure(WeatherRecord record) {
+        return record.pressure() - LocalAtmosphere.pressureShift(record.pos().getY());
+    }
+
+    private float levelHumidity(WeatherRecord record) {
+        return record.humidity() - LocalAtmosphere.humidityShift(level, record.biome());
+    }
+
+    private WeatherRecord projectLevelAir() {
+        if (level == null || records.size() < AWCommonConfig.get().archiveMinRecordsForForecast) return null;
+
+        WeatherRecord last = lastHere();
+        if (last == null) return null;
         long dtNext = AWCommonConfig.get().archiveForecastHorizonTicks;
         long tNext = last.gameTime() + dtNext;
 
         int mask = 0;
         float temp = 0f, press = 0f, hum = 0f, wind = 0f;
 
-        DimensionProfile profile = level != null
-                ? DimensionProfile.of(level) : DimensionProfile.FALLBACK;
+        DimensionProfile profile = DimensionProfile.of(level);
 
         WeatherRecord[] t = lastThreeWith(WeatherRecord::hasTemperature);
         if (t != null) {
             mask |= WeatherRecord.MASK_TEMPERATURE;
-            temp = Mth.clamp(extrapolateSeries(t, WeatherRecord::temperature, tNext),
+            temp = Mth.clamp(extrapolateSeries(t, this::levelTemperature, tNext),
                     profile.tMin - 40f, profile.tMax + 40f);
         }
 
@@ -125,14 +148,14 @@ public class WeatherArchiveBlockEntity extends BlockEntity {
         if (p != null) {
             mask |= WeatherRecord.MASK_PRESSURE;
             float margin = (profile.pMax - profile.pMin) * 1.5f + 50f;
-            press = Mth.clamp(extrapolateSeries(p, WeatherRecord::pressure, tNext),
+            press = Mth.clamp(extrapolateSeries(p, this::levelPressure, tNext),
                     Math.max(0f, profile.pMin - margin), profile.pMax + margin);
         }
 
         WeatherRecord[] h = lastThreeWith(WeatherRecord::hasHumidity);
         if (h != null) {
             mask |= WeatherRecord.MASK_HUMIDITY;
-            hum = Mth.clamp(extrapolateSeries(h, WeatherRecord::humidity, tNext), 0f, 100f);
+            hum = Mth.clamp(extrapolateSeries(h, this::levelHumidity, tNext), 0f, 100f);
         }
 
         WeatherRecord[] w = lastThreeWith(WeatherRecord::hasWind);
@@ -147,6 +170,19 @@ public class WeatherArchiveBlockEntity extends BlockEntity {
                 last.stationName(), last.weatherOrdinal(), mask, temp, press, hum, wind);
     }
 
+    public WeatherRecord computeForecastPoint() {
+        WeatherRecord air = projectLevelAir();
+        if (air == null) return null;
+
+        int y = air.pos().getY();
+        return new WeatherRecord(air.gameTime(), air.dimension(), air.pos(), air.biome(), air.stationName(),
+                air.weatherOrdinal(), air.sensorMask(),
+                air.temperature() + LocalAtmosphere.temperatureShift(level, air.biome(), y),
+                air.pressure() + LocalAtmosphere.pressureShift(y),
+                Mth.clamp(air.humidity() + LocalAtmosphere.humidityShift(level, air.biome()), 0f, 100f),
+                air.windIntensity());
+    }
+
     public void refreshPrediction(ServerLevel serverLevel) {
         int needed = AWCommonConfig.get().archiveMinRecordsForForecast;
         if (records.size() < needed) {
@@ -154,8 +190,8 @@ public class WeatherArchiveBlockEntity extends BlockEntity {
             return;
         }
 
-        WeatherRecord projected = computeForecastPoint();
-        WeatherRecord last = records.getLast();
+        WeatherRecord projected = projectLevelAir();
+        WeatherRecord last = lastHere();
 
         if (projected == null || !projected.hasPressure() || !projected.hasTemperature()) {
             predictedTop.clear();
@@ -164,10 +200,11 @@ public class WeatherArchiveBlockEntity extends BlockEntity {
             return;
         }
 
-        List<WeatherTypes> measuredHistory = records.stream()
-                .skip(Math.max(0, records.size() - 5))
+        List<WeatherTypes> here = records.stream()
+                .filter(this::fromHere)
                 .map(WeatherRecord::weatherType)
                 .toList();
+        List<WeatherTypes> measuredHistory = here.subList(Math.max(0, here.size() - 5), here.size());
 
         DimensionProfile profile = DimensionProfile.of(serverLevel);
         float normalizedP = Mth.clamp(
@@ -179,7 +216,7 @@ public class WeatherArchiveBlockEntity extends BlockEntity {
                 last.weatherType(), normalizedP, projected.temperature(), humidity,
                 DimensionProfile.getDimension(serverLevel), serverLevel, measuredHistory);
 
-        confidence = forecastConfidence();
+        float quality = dataQuality();
 
         var candidates = WeatherTransitionGraph.topCandidates(prediction, 3);
         int k = candidates.size();
@@ -188,9 +225,10 @@ public class WeatherArchiveBlockEntity extends BlockEntity {
         float[] tempered = new float[k];
         float sum = 0f;
         for (int i = 0; i < k; i++) {
-            tempered[i] = Mth.lerp(confidence, uniform, candidates.get(i).probability());
+            tempered[i] = Mth.lerp(quality, uniform, candidates.get(i).probability());
             sum += tempered[i];
         }
+        confidence = k > 0 ? tempered[0] : 0f;
 
         predictedTop.clear();
         for (int i = 0; i < k; i++) {
@@ -207,7 +245,7 @@ public class WeatherArchiveBlockEntity extends BlockEntity {
         return level.getDayTime() - records.getLast().gameTime();
     }
 
-    public float forecastConfidence() {
+    private float dataQuality() {
         int n = records.size();
         int floor = AWCommonConfig.get().archiveConfidenceFloorRecords;
         int sat = AWCommonConfig.get().archiveConfidenceSaturationRecords;

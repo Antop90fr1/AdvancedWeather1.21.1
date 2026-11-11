@@ -6,7 +6,7 @@ import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStat
 import net.antopfr.advancedweather.weather.LocalAtmosphere;
 import net.antopfr.advancedweather.weather.WeatherManager;
 import net.antopfr.advancedweather.weather.WeatherTypes;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindSpeedCalculation;
+import net.antopfr.advancedweather.weather.wind.WindScale;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -29,15 +29,14 @@ public class WeatherStationDisplaySource extends DisplaySource {
 
         if (stats.maxRows() >= 4) {
             return List.of(
-                    Component.literal(weather.displayString()),
+                    weather.displayName().copy(),
                     Component.literal(String.format("%.1f °C  %.0f%%", temp, hum)),
                     Component.literal(String.format("%.1f hPa", pressure)),
-                    Component.literal(String.format("%.0f km/h %s", windKmh,
-                            WindSpeedCalculation.getBeaufortLabel(windKmh)))
+                    Component.literal(String.format("%.0f km/h ", windKmh)).append(WindScale.beaufort(windKmh))
             );
         }
-        return List.of(Component.literal(String.format("%s %.0f°C %.0fkm/h",
-                weather.displayString(), temp, windKmh)));
+        return List.of(weather.displayName().copy()
+                .append(String.format(" %.0f°C %.0fkm/h", temp, windKmh)));
     }
 
     @Override

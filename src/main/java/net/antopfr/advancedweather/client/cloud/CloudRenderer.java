@@ -1,15 +1,23 @@
 package net.antopfr.advancedweather.client.cloud;
 
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexBuffer;
+import foundry.veil.api.client.render.VeilRenderBridge;
+import foundry.veil.api.client.render.VeilRenderSystem;
+import foundry.veil.api.client.render.shader.program.ShaderProgram;
+import net.antopfr.advancedweather.client.storm.DistantStorm;
+import net.antopfr.advancedweather.client.storm.HailOmen;
 import net.antopfr.advancedweather.AdvancedWeather;
+import net.antopfr.advancedweather.compat.iris.IrisCompat;
 import net.antopfr.advancedweather.config.AWClientConfig;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -17,108 +25,205 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 
-import java.util.Objects;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 @EventBusSubscriber(modid = AdvancedWeather.MOD_ID, value = Dist.CLIENT)
-public class CloudRenderer {
+public final class CloudRenderer {
 
-    private static VertexBuffer buffer;
-    private static int builtCellX = Integer.MIN_VALUE, builtCellZ = Integer.MIN_VALUE;
-    private static float builtThreshold = -1f;
-    private static int builtRadius = -1;
-    private static float builtSunAngle = Float.MIN_VALUE;
-    private static int builtCamY = Integer.MIN_VALUE;
-    private static boolean empty = true;
+    private CloudRenderer() {}
+
+    private static final ResourceLocation SHADER =
+            ResourceLocation.fromNamespaceAndPath(AdvancedWeather.MOD_ID, "clouds");
+
+    private static final int EVICT_AFTER_FRAMES = 240;
+
+    private static final Map<Long, CloudTile> TILES = new HashMap<>();
+    private static final List<CloudTile> VISIBLE = new ArrayList<>();
+
+    private static ClientLevel trackedLevel;
+    private static long frame;
 
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || !CloudState.enabled()) return;
-        if (mc.level.dimension() != Level.OVERWORLD) return;
-
-        Camera cam = event.getCamera();
-        Vec3 camPos = cam.getPosition();
-
-        float s = CloudState.CELL_SIZE;
-        int radiusCells = Math.max(4, (int) (AWClientConfig.get().cloudRenderDistance / s));
-
-        double cloudX = camPos.x - CloudState.scrollX();
-        double cloudZ = camPos.z - CloudState.scrollZ();
-        int centerCellX = Mth.floor(cloudX / s);
-        int centerCellZ = Mth.floor(cloudZ / s);
-
-        float threshold = CloudState.threshold();
-        float sunAngle = CloudState.sunAngle();
-        int camYq = Mth.floor(camPos.y / 16.0) * 16;
-
-        if (centerCellX != builtCellX || centerCellZ != builtCellZ
-                || threshold != builtThreshold || radiusCells != builtRadius
-                || sunAngle != builtSunAngle || camYq != builtCamY) {
-            rebuild(centerCellX, centerCellZ, radiusCells, threshold, sunAngle);
+        ClientLevel level = mc.level;
+        if (level != trackedLevel) {
+            releaseAll();
+            trackedLevel = level;
         }
-        if (empty) return;
+        if (level == null || IrisCompat.shaderPackInUse() || !CloudState.visible(level)) return;
 
-        double meshWorldX = centerCellX * s + CloudState.scrollX();
-        double meshWorldZ = centerCellZ * s + CloudState.scrollZ();
+        ShaderProgram program = VeilRenderSystem.renderer().getShaderManager().getShader(SHADER);
+        if (program == null) return;
 
-        Matrix4f mv = new Matrix4f(RenderSystem.getModelViewMatrix());
-        mv.translate((float) (meshWorldX - camPos.x),
-                (float) (CloudState.altitude() - camPos.y),
-                (float) (meshWorldZ - camPos.z));
+        frame++;
+        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(true);
+        Vec3 camera = event.getCamera().getPosition();
 
-        int tint = CloudState.tint();
-        float tr = ((tint >> 16) & 0xFF) / 255f;
-        float tg = ((tint >> 8) & 0xFF) / 255f;
-        float tb = (tint & 0xFF) / 255f;
+        long gameTime = level.getGameTime();
+        long keyframe = Math.floorDiv(gameTime, CloudDensity.KEYFRAME_TICKS);
+        float morph = (Math.floorMod(gameTime, CloudDensity.KEYFRAME_TICKS) + partialTick) / CloudDensity.KEYFRAME_TICKS;
+
+        double driftX = CloudState.driftX(partialTick);
+        double driftZ = CloudState.driftZ(partialTick);
+        float radius = AWClientConfig.get().cloudRenderDistance;
+
+        collectVisibleTiles(event.getFrustum(), camera, driftX, driftZ, radius, keyframe, morph);
+        evictStaleTiles();
+        if (VISIBLE.isEmpty()) return;
+
+        setFrameUniforms(program, CloudLighting.compute(level, camera, partialTick), radius);
+        vec3(program, "FarFlash", DistantStorm.flashX(), DistantStorm.flashZ(), DistantStorm.flash(partialTick));
+        float omen = HailOmen.yellowing(partialTick);
+        if (omen > 0f) {
+            vec3(program, "CloudTint",
+                    CloudState.tintR() + (HailOmen.RED - CloudState.tintR()) * omen,
+                    CloudState.tintG() + (HailOmen.GREEN - CloudState.tintG()) * omen,
+                    CloudState.tintB() + (HailOmen.BLUE - CloudState.tintB()) * omen);
+        }
+        draw(program, camera, driftX, driftZ, keyframe, morph, event.getProjectionMatrix());
+    }
+
+    private static void collectVisibleTiles(Frustum frustum, Vec3 camera, double driftX, double driftZ,
+                                            float radius, long keyframe, float morph) {
+        VISIBLE.clear();
+
+        double cloudX = camera.x - driftX;
+        double cloudZ = camera.z - driftZ;
+        int centerX = Mth.floor(cloudX / CloudTile.SPAN);
+        int centerZ = Mth.floor(cloudZ / CloudTile.SPAN);
+        int reach = Mth.ceil(radius / CloudTile.SPAN) + 1;
+        double keep = radius + CloudTile.SPAN * 0.75;
+
+        double base = CloudState.altitude();
+        double top = CloudState.altitude() + CloudState.maxThickness() * 1.6;
+
+        for (int dz = -reach; dz <= reach; dz++) {
+            for (int dx = -reach; dx <= reach; dx++) {
+                int tx = centerX + dx;
+                int tz = centerZ + dz;
+
+                double minX = tx * (double) CloudTile.SPAN;
+                double minZ = tz * (double) CloudTile.SPAN;
+                double centreDx = minX + CloudTile.SPAN * 0.5 - cloudX;
+                double centreDz = minZ + CloudTile.SPAN * 0.5 - cloudZ;
+                if (centreDx * centreDx + centreDz * centreDz > keep * keep) continue;
+
+                CloudTile tile = TILES.computeIfAbsent(key(tx, tz), k -> new CloudTile(tx, tz));
+                tile.lastSeenFrame = frame;
+                tile.update(keyframe, morph, CloudState.threshold());
+
+                double worldX = minX + driftX;
+                double worldZ = minZ + driftZ;
+                AABB bounds = new AABB(worldX, base, worldZ, worldX + CloudTile.SPAN, top, worldZ + CloudTile.SPAN);
+                if (tile.renderable() && frustum.isVisible(bounds)) {
+                    VISIBLE.add(tile);
+                }
+            }
+        }
+    }
+
+    private static void draw(ShaderProgram program, Vec3 camera, double driftX, double driftZ,
+                             long keyframe, float morph, Matrix4f projection) {
+        ShaderInstance shader = VeilRenderBridge.toShaderInstance(program);
+        Matrix4f modelView = new Matrix4f(RenderSystem.getModelViewMatrix());
+        float offsetY = (float) (CloudState.altitude() - camera.y);
 
         RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
+        RenderSystem.blendFuncSeparate(
+                GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         RenderSystem.enableDepthTest();
         RenderSystem.disableCull();
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
-
-        buffer.bind();
 
         RenderSystem.colorMask(false, false, false, false);
         RenderSystem.depthMask(true);
-        buffer.drawWithShader(mv, event.getProjectionMatrix(),
-                Objects.requireNonNull(RenderSystem.getShader()));
+        drawTiles(program, shader, modelView, projection, camera, driftX, driftZ, offsetY, keyframe, morph, false);
 
         RenderSystem.colorMask(true, true, true, true);
         RenderSystem.depthMask(false);
-        RenderSystem.setShaderColor(tr, tg, tb, CloudState.opacity());
-        buffer.drawWithShader(mv, event.getProjectionMatrix(), RenderSystem.getShader());
+        drawTiles(program, shader, modelView, projection, camera, driftX, driftZ, offsetY, keyframe, morph, true);
 
         VertexBuffer.unbind();
-
-        RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         RenderSystem.depthMask(true);
+        RenderSystem.enableCull();
+        RenderSystem.defaultBlendFunc();
         RenderSystem.disableBlend();
     }
 
-    private static void rebuild(int cellX, int cellZ, int radiusCells, float threshold,
-                                float sunAngle) {
-        MeshData mesh = CloudMeshBuilder.build(cellX, cellZ, radiusCells, threshold);
-
-        builtCellX = cellX;
-        builtCellZ = cellZ;
-        builtRadius = radiusCells;
-        builtThreshold = threshold;
-        builtSunAngle = sunAngle;
-
-        if (mesh == null) {
-            empty = true;
-            return;
+    private static void drawTiles(ShaderProgram program, ShaderInstance shader, Matrix4f modelView,
+                                  Matrix4f projection, Vec3 camera, double driftX, double driftZ,
+                                  float offsetY, long keyframe, float morph, boolean colourPass) {
+        for (CloudTile tile : VISIBLE) {
+            float offsetX = (float) (tile.tileX * (double) CloudTile.SPAN + driftX - camera.x);
+            float offsetZ = (float) (tile.tileZ * (double) CloudTile.SPAN + driftZ - camera.z);
+            vec3(program, "TileOffset", offsetX, offsetY, offsetZ);
+            uniform(program, "Morph", tile.morph(keyframe, morph));
+            uniform(program, "TileFade", tile.fadeIn());
+            tile.draw(modelView, projection, shader);
+            if (colourPass) tile.countShownFrame();
         }
-        empty = false;
+    }
 
-        if (buffer == null) {
-            buffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
+    private static void setFrameUniforms(ShaderProgram program, CloudLighting light, float radius) {
+        uniform(program, "Threshold", CloudState.threshold());
+        uniform(program, "MinThickness", CloudState.minThickness());
+        uniform(program, "MaxThickness", CloudState.maxThickness());
+        uniform(program, "Puff", CloudState.puff());
+        uniform(program, "HeightCurve", CloudState.heightCurve());
+        uniform(program, "CellSize", CloudDensity.CELL_SIZE);
+        uniform(program, "Opacity", CloudState.opacity());
+        uniform(program, "FadeStart", radius * 0.45f);
+        uniform(program, "FadeEnd", radius * 0.95f);
+        uniform(program, "Flash", light.flash());
+        vec3(program, "CloudTint", CloudState.tintR(), CloudState.tintG(), CloudState.tintB());
+        vec3(program, "LightDir", light.lightDir());
+        vec3(program, "LightColor", light.lightColor());
+        vec3(program, "AmbientTop", light.ambientTop());
+        vec3(program, "AmbientBottom", light.ambientBottom());
+
+        float[] fog = RenderSystem.getShaderFogColor();
+        vec3(program, "FogColor", fog[0], fog[1], fog[2]);
+    }
+
+    private static void evictStaleTiles() {
+        Iterator<CloudTile> it = TILES.values().iterator();
+        while (it.hasNext()) {
+            CloudTile tile = it.next();
+            if (frame - tile.lastSeenFrame > EVICT_AFTER_FRAMES) {
+                tile.close();
+                it.remove();
+            }
         }
-        buffer.bind();
-        buffer.upload(mesh);
-        VertexBuffer.unbind();
+    }
+
+    private static void releaseAll() {
+        TILES.values().forEach(CloudTile::close);
+        TILES.clear();
+        VISIBLE.clear();
+    }
+
+    private static long key(int tileX, int tileZ) {
+        return ((long) tileX << 32) ^ (tileZ & 0xFFFFFFFFL);
+    }
+
+    private static void uniform(ShaderProgram program, String name, float value) {
+        var u = program.getUniform(name);
+        if (u != null) u.setFloat(value);
+    }
+
+    private static void vec3(ShaderProgram program, String name, float x, float y, float z) {
+        var u = program.getUniform(name);
+        if (u != null) u.setVector(x, y, z);
+    }
+
+    private static void vec3(ShaderProgram program, String name, Vec3 v) {
+        vec3(program, name, (float) v.x, (float) v.y, (float) v.z);
     }
 }

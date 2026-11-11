@@ -111,7 +111,7 @@ Build a working meteorological station:
 - **Sensors** (Thermometer / Barometer / Hygrometer / Anemometer) with **realistic placement rules** - a thermometer must be sheltered from direct sky with airflow; an anemometer needs open sky and clear sides; etc. Bad placement gives bad readings.
 - **Weather Archive** - store reports and almanacs; it studies your measurement history to **forecast the next weather**, rejecting duplicates and reports older than its memory.
 - **Auto-Sampler** - automatically feeds station data into an archive at a configurable interval.
-- **Weather Detector** - emits redstone based on weather (rain, snow, storm, thunderstorm, hail, or an analog 0–15 wind signal).
+- **Weather Detector** - emits redstone based on weather (rain, snow, storm, thunderstorm, hail, or an analog 0–15 wind signal). With early warning on, it lights up 90 s before the watched weather arrives and stays on while it lasts.
 - **Weather Almanac** - a portable record of archived trends.
 
 Two keybinds open a **weather history graph** and a **probable-transitions view** so you can study the atmosphere directly (only on debug mode).
@@ -150,12 +150,15 @@ A **YACL config screen** is provided for in-game editing.
 
 | Mod                                 | Type              | What it adds                                                                     |
 |-------------------------------------|-------------------|----------------------------------------------------------------------------------|
-| **YetAnotherConfigLib (YACL)**      | Required (client) | In-game config screen                                                            |
-| **Create**                          | Optional          | Windmills react to real wind (speed & direction); weather data on Display Boards |
+| **YetAnotherConfigLib (YACL)**      | Required (both)   | Config files and in-game config screen                                           |
+| **Create**                          | Optional          | Windmill sails visibly follow the wind (visual only); weather on Display Boards  |
 | **Create: Aeronautics / Simulated** | Optional          | Wind pushes simulated contraptions                                               |
 | **Serene Seasons**                  | Optional          | Season-aware weather types, temperature & dew point                              |
+| **Ecliptic Seasons**                | Optional          | Its solar terms shape AW weather, temperature and dew point; AW drives its rain  |
 | **JEI**                             | Optional (client) | Calibration Bench recipes in the recipe viewer                                   |
-| **Iris Shaders**                    | Incompatible      | Some shaders may be incompatible with the way that AW render its fog             |
+| **Particle Rain**                   | Optional (client) | Its rain, snow and dust follow AW weather types, their intensity and the wind    |
+| **ATMOSPHERICS**                    | Optional (client) | Its biome fog, sky and dust stay; AW weather fog, cloud veil and wind lead       |
+| **Iris Shaders**                    | Partial           | With a shader pack on, AW clouds, fog and ground cover give way to the pack      |
 
 <p>
   <img src="docs/images/wind.png" alt="Aeronautics compatibility" width="75%">
@@ -166,7 +169,7 @@ A **YACL config screen** is provided for in-game editing.
 ## Requirements
 
 - **Minecraft** 1.21.1
-- **NeoForge** 21.1.230+
+- **NeoForge** 21.1.233+
 - **YetAnotherConfigLib** 3.6+
 
 ---
@@ -186,7 +189,7 @@ All commands live under `/aw`. Server commands require permission level 2 (opera
 
 | Command | Description |
 |---|---|
-| `/aw set <type>` | Set and pin a weather type |
+| `/aw set <type>` | Switch to a weather type now; it lasts a normal spell, then the weather engine carries on |
 | `/aw auto` | Hand control back to the weather engine |
 | `/aw refresh` | Pull real-world weather now (requires real weather enabled) |
 | `/aw setlocation <lat> <lon>` | Set the real-weather coordinates |
@@ -206,24 +209,65 @@ All commands live under `/aw`. Server commands require permission level 2 (opera
 
 ## For developers
 
-Advanced Weather exposes a small, stable API under `net.antopfr.advancedweather.api`. Everything **outside** that package is internal and may change without notice.
+Advanced Weather has a small public API under `net.antopfr.advancedweather.api`. It is a set of static methods: there is nothing to register or to create. Everything **outside** that package is internal and may change without notice, apart from the `WeatherTypes` and `AtmosphericForcing.Bias` enums, which the API uses.
 
-**Server-side reads & control** - `AdvancedWeatherAPI` (call on the server thread):
+**Setting up** - compile against the mod's jar and declare it as an optional dependency:
 
-```java
-import net.antopfr.advancedweather.api.AdvancedWeatherAPI;
-import net.antopfr.advancedweather.weather.WeatherTypes;
-
-WeatherTypes now = AdvancedWeatherAPI.getCurrentWeather(serverLevel);
-AtmosphereSnapshot atmo = AdvancedWeatherAPI.getAtmosphere(serverLevel); // pressure, temp, humidity, wind...
-WeatherForecast fc = AdvancedWeatherAPI.getForecast(serverLevel);        // next + in-30-min, with confidence
-
-AdvancedWeatherAPI.setWeather(serverLevel, WeatherTypes.THUNDERSTORM);   // returns false if wrong dimension
-AdvancedWeatherAPI.startAutoWeather(serverLevel);                        // hand control back to the engine
-AdvancedWeatherAPI.applyForcing(serverLevel, -30f, 8f, 0f, 20 * 60);     // nudge pressure/dew point/temp
+```groovy
+dependencies {
+    compileOnly files("libs/advancedweather-0.1.3.jar")
+}
 ```
 
-**Listen for changes** - `WeatherChangeEvent` on the NeoForge bus:
+```toml
+[[dependencies.yourmod]]
+modId = "advancedweather"
+type = "optional"
+versionRange = "[0.1.3,)"
+ordering = "NONE"
+side = "BOTH"
+```
+
+Keep your calls in a class of your own, and only touch it when the mod is there:
+
+```java
+if (ModList.get().isLoaded("advancedweather")) {
+    MyWeatherCompat.init();
+}
+```
+
+**Server side** - `AdvancedWeatherAPI`, on the server thread, with any `ServerLevel`:
+
+```java
+// The weather, and what comes next
+WeatherTypes now = AdvancedWeatherAPI.getCurrentWeather(level);
+WeatherTypes coming = AdvancedWeatherAPI.getComingWeather(level);   // certain, but null until about 90 s before the change
+int left = AdvancedWeatherAPI.getTicksUntilNextWeather(level);      // -1 where real weather drives the level
+WeatherForecast forecast = AdvancedWeatherAPI.getForecast(level);   // an estimate: next and in 30 minutes, with confidence
+
+// The air: for the whole level, or at a place with its biome and height
+AtmosphereSnapshot air = AdvancedWeatherAPI.getAtmosphere(level);
+float temperature = AdvancedWeatherAPI.getLocalTemperature(level, pos);
+float wind = AdvancedWeatherAPI.getWindSpeedKmh(level, pos.getCenter());
+
+// What lies on the ground, from 0 to 1
+float snow = AdvancedWeatherAPI.getSnowCover(level, pos);
+float sand = AdvancedWeatherAPI.getSandCover(level, pos);
+
+// Changing the weather
+AdvancedWeatherAPI.setWeather(level, WeatherTypes.THUNDERSTORM);       // at once; false if wrong dimension
+AdvancedWeatherAPI.approachWeather(level, WeatherTypes.THUNDERSTORM);  // seen coming first, arrives in 90 s
+
+// Nudging the atmosphere: pressure, dew point and temperature, for one minute here
+AdvancedWeatherAPI.applyForcing(level, -30f, 8f, 0f, 20 * 60);         // weighs on the next change
+AdvancedWeatherAPI.seedWeather(level, -30f, 8f, 0f, 20 * 60, AtmosphericForcing.Bias.SEEDING); // and brings it within 25 s
+
+AdvancedWeatherAPI.startAutoWeather(level);                            // new natural duration, next weather redrawn
+```
+
+A weather set this way is not pinned: it lasts one natural spell, then the engine carries on. Where the Overworld follows real weather, the next sync replaces it. The atmosphere only decides the weather in the Overworld: in the Nether and the End, a forcing moves the readings, not the odds.
+
+**Listening for changes** - `WeatherChangeEvent` on the NeoForge bus, on the server, whatever caused the change:
 
 ```java
 NeoForge.EVENT_BUS.addListener((WeatherChangeEvent e) -> {
@@ -231,8 +275,15 @@ NeoForge.EVENT_BUS.addListener((WeatherChangeEvent e) -> {
 });
 ```
 
-**Client-side reads** (HUD add-ons, client thread only) - `AdvancedWeatherClientAPI`:
-`getCurrentWeather()`, `getPressure()`, `getTemperature()`, `getHumidity()`, `getWindIntensity()`, `getPredictedNext()`, and more.
+**Client side** - `AdvancedWeatherClientAPI`, for HUD add-ons, on the client thread only. It reads what the local player sees:
+
+```java
+WeatherTypes shown = AdvancedWeatherClientAPI.getCurrentWeather();
+float felt = AdvancedWeatherClientAPI.getTemperature();
+float kmh = AdvancedWeatherClientAPI.getLocalWindSpeedKmh();
+WeatherTypes storm = AdvancedWeatherClientAPI.getComingWeather();      // only the storms seen coming in the sky
+float cover = AdvancedWeatherClientAPI.getSnowCover();
+```
 
 Registering **custom weather types** from another mod is not supported yet - planned for a later API revision.
 
@@ -253,14 +304,6 @@ This software embeds the following third-party libraries via JarJar:
 2. **[Veil](https://github.com/FoundryMC/Veil)**
     - Authors: Foundry Systems
     - License: [GNU Lesser General Public License v3.0 (LGPL-3.0)](licenses/VEIL-LICENSE.txt)
-
-3. **[Ponder](https://github.com/Creators-of-Create/Ponder)**
-    - Authors: Create Mod Team
-    - License: [MIT License](licenses/PONDER-LICENSE.txt) 
-
-4. **[Flywheel](https://github.com/Engine-Room/Flywheel)**
-     - Authors: Create Mod Team
-     - License: [MIT License](licenses/FLYWHEEL-LICENSE.md)
 
 The respective licenses and copyright notices for these libraries apply.
 See included files for full license texts where applicable.

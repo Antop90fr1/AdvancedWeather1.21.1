@@ -3,7 +3,8 @@ package net.antopfr.advancedweather.weather.effect.types.ground_fog;
 import net.antopfr.advancedweather.client.state.ClientWeatherState;
 import net.antopfr.advancedweather.client.particle.AWParticles;
 import net.antopfr.advancedweather.weather.WeatherEffects;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindDirection;
+import net.antopfr.advancedweather.client.wind.ClientWind;
+import net.antopfr.advancedweather.weather.wind.WindField;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
@@ -39,11 +40,10 @@ public class GroundFogHandler {
         if (mc.level.getGameTime() % 2 != 0) return;
 
         Player player = mc.player;
-        Vec3 windDir = WindDirection.get(0f);
-        long gameTime = mc.level.getGameTime();
+        Vec3 windDir = ClientWind.direction();
 
-        double noiseMoveX = windDir.x * gameTime * 0.05;
-        double noiseMoveZ = windDir.z * gameTime * 0.05;
+        double noiseMoveX = -WindField.clientState().upperX(0f) * 0.4;
+        double noiseMoveZ = -WindField.clientState().upperZ(0f) * 0.4;
 
         double biasX = -windDir.x * 14.0;
         double biasZ = -windDir.z * 14.0;

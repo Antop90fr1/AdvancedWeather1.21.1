@@ -11,6 +11,14 @@ tasks.named('wrapper', Wrapper).configure {
 
 tasks.named('jar', Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from('LICENSE.txt')
+    from('licenses') {
+        include 'REGISTRATE-LICENSE.txt', 'VEIL-LICENSE.txt'
+        into 'licenses'
+    }
+    from('docs/images/reducedlogo8.png') {
+        rename { 'advancedweather_logo.png' }
+    }
 }
 
 version = mod_version
@@ -115,7 +123,6 @@ dependencies {
     compileOnly "mezz.jei:jei-1.21.1-neoforge:19.38.0.366"
     runtimeOnly "mezz.jei:jei-1.21.1-neoforge:19.38.0.366"
 
-    compileOnly files("libs/better-clouds-1.13.5-beta+1.21.1-neoforge.rev.a60dfa0.jar")
 
     compileOnly ("dev.isxander:yet-another-config-lib:${project.yacl_version}")
     localRuntime "dev.isxander:yet-another-config-lib:3.8.1+1.21.1-neoforge"
@@ -133,13 +140,12 @@ dependencies {
     compileOnly("net.createmod.ponder:ponder-neoforge:${ponder_version}+mc${minecraft_version}")
     runtimeOnly("net.createmod.ponder:ponder-neoforge:${ponder_version}+mc${minecraft_version}")
 
-    implementation "curse.maven:serene-seasons-291874:6182596"
-    implementation "curse.maven:glitchcore-955399:8109792"
+    compileOnly "curse.maven:serene-seasons-291874:6182596"
+    compileOnly "curse.maven:glitchcore-955399:8109792"
+    implementation "curse.maven:cold-sweat-506194:8302211"
 
     jarJar "com.tterrag.registrate:Registrate:${registrate_version}"
     jarJar "foundry.veil:veil-neoforge-${project.minecraft_version}:${project.veil_version}"
-    jarJar("net.createmod.ponder:ponder-neoforge:${ponder_version}+mc${minecraft_version}")
-    jarJar("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {

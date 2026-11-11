@@ -1,6 +1,7 @@
 package net.antopfr.advancedweather.content.block.calibration;
 
 import net.antopfr.advancedweather.AdvancedWeather;
+import net.antopfr.advancedweather.util.Key;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -100,8 +101,8 @@ public class RotorCalibrationScreen extends CalibrationScreen {
         g.blit(ROTOR, 0, 0, ROTOR_SIZE, ROTOR_SIZE, 0, 0, ROTOR_SIZE, ROTOR_SIZE, ROTOR_SIZE, ROTOR_SIZE);
         g.pose().popPose();
 
-        g.drawString(font, "§0Spin the rotor,", x + 145, y + 44, 0x88776655, false);
-        g.drawString(font, "§0hold the speed", x + 145, y + 56, 0x88776655, false);
+        g.drawString(font, "§0" + Key.t("advancedweather.calibration.rotor.hint.1"), x + 145, y + 44, 0x88776655, false);
+        g.drawString(font, "§0" + Key.t("advancedweather.calibration.rotor.hint.2"), x + 145, y + 56, 0x88776655, false);
     }
 
     @Override

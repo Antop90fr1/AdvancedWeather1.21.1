@@ -10,6 +10,8 @@ import org.jetbrains.annotations.NotNull;
 @OnlyIn(Dist.CLIENT)
 public class HailDropParticle extends TextureSheetParticle {
 
+    private static final double MAX_BOUNCE = 0.25D;
+
     protected HailDropParticle(ClientLevel level, double x, double y, double z, SpriteSet sprites) {
         super(level, x, y, z, 0, 0, 0);
         this.lifetime = 40;
@@ -34,7 +36,7 @@ public class HailDropParticle extends TextureSheetParticle {
         this.move(this.xd, this.yd, this.zd);
 
         if (this.onGround) {
-            this.yd = -this.yd * 0.50D;
+            this.yd = Math.min(-this.yd * 0.50D, MAX_BOUNCE);
             this.xd *= 0.5D;
             this.zd *= 0.5D;
             if (Math.abs(this.yd) < 0.05D) {
@@ -64,7 +66,9 @@ public class HailDropParticle extends TextureSheetParticle {
         public Particle createParticle(@NotNull SimpleParticleType type, @NotNull ClientLevel level,
                                        double x, double y, double z,
                                        double xSpeed, double ySpeed, double zSpeed) {
-            return new HailDropParticle(level, x, y, z, sprites);
+            HailDropParticle stone = new HailDropParticle(level, x, y, z, sprites);
+            if (xSpeed != 0.0D || ySpeed != 0.0D || zSpeed != 0.0D) stone.setParticleSpeed(xSpeed, ySpeed, zSpeed);
+            return stone;
         }
     }
 }

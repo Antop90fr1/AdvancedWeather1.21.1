@@ -23,6 +23,7 @@ public class LightningFlashHandler {
     private static int shakeTick = 0;
     private static final int SHAKE_DURATION = 8;
     private static float shakeIntensity = 0f;
+    private static float dazzle = 1f;
 
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Pre event) {
@@ -34,7 +35,7 @@ public class LightningFlashHandler {
             return;
         }
 
-        float alpha = (float) flashTick / FLASH_DURATION * 0.85f;
+        float alpha = (float) flashTick / FLASH_DURATION * 0.85f * dazzle;
 
         GuiGraphics graphics = event.getGuiGraphics();
         int w = Minecraft.getInstance().getWindow().getGuiScaledWidth();
@@ -45,10 +46,15 @@ public class LightningFlashHandler {
         );
     }
 
-    public static void triggerFlash() {
+    public static float flashStrength() {
+        return flashTick / (float) FLASH_DURATION * dazzle;
+    }
+
+    public static void triggerFlash(float strength) {
+        dazzle = Math.max(0f, Math.min(1f, strength));
         flashTick = FLASH_DURATION;
         shakeTick = SHAKE_DURATION;
-        shakeIntensity = 0.8f + random.nextFloat() * 0.4f;
+        shakeIntensity = (0.8f + random.nextFloat() * 0.4f) * dazzle;
     }
 
     @SubscribeEvent

@@ -2,171 +2,105 @@ package net.antopfr.advancedweather.client.cloud;
 
 import net.antopfr.advancedweather.client.state.ClientAtmosphereState;
 import net.antopfr.advancedweather.client.state.ClientWeatherState;
-import net.antopfr.advancedweather.util.WeatherPalette;
 import net.antopfr.advancedweather.weather.BiomeFogData;
+import net.antopfr.advancedweather.weather.CloudShape;
+import net.antopfr.advancedweather.weather.WeatherDefinition;
+import net.antopfr.advancedweather.weather.WeatherDefinitions;
 import net.antopfr.advancedweather.weather.WeatherTypes;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindDirection;
+import net.antopfr.advancedweather.weather.wind.WindField;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
-public class CloudState {
-    public static final float CELL_SIZE = 8f;
-    public static final float CELL_HEIGHT = 6f;
+public final class CloudState {
 
+    private CloudState() {}
+
+    private static final float RATE = 0.004f;
+    private static final float VANISH_RATE = 0.02f;
     private static final float BIOME_INFLUENCE = 0.35f;
 
-    private static final float THRESHOLD_STEP = 0.004f;
+    private static ClientLevel trackedLevel;
 
-    private static float coverage = 0f;
+    private static float coverage;
     private static float altitude = 160f;
-    private static double scrollX = 0, scrollZ = 0;
-
-    private static float opacity = 0.6f;
-
-    private static float mixedR = 1f, mixedG = 1f, mixedB = 1f;
-
-    private static float sunAngle = 0f;
-    private static Vec3 sunDir = new Vec3(0, 1, 0);
-    private static float goldenHour = 0f;
+    private static float opacity = 0.85f;
+    private static float minThickness = CloudShape.CUMULUS.minThickness;
+    private static float maxThickness = CloudShape.CUMULUS.maxThickness;
+    private static float puff = CloudShape.CUMULUS.puff;
+    private static float heightCurve = CloudShape.CUMULUS.heightCurve;
+    private static float tintR = 1f, tintG = 1f, tintB = 1f;
 
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
+        ClientLevel level = mc.level;
+        if (level == null) return;
+
+        boolean snap = level != trackedLevel;
+        trackedLevel = level;
 
         WeatherTypes weather = ClientWeatherState.getCurrentWeather();
+        WeatherDefinition def = WeatherDefinitions.get(weather);
 
-        float base = baseCoverage(weather);
-        float margin = coverageMargin(weather);
-        float humidityNorm = Mth.clamp((ClientAtmosphereState.getLocalHumidity() - 60f) / 40f, -1f, 1f);
-        float target = Mth.clamp(base + humidityNorm * margin, 0f, 1f);
+        float humidity = Mth.clamp((ClientAtmosphereState.getLocalHumidity() - 60f) / 40f, -1f, 1f);
+        float targetCoverage = Mth.clamp(def.cloudCoverage + humidity * def.coverageMargin, 0f, 1f);
+        float targetOpacity = Mth.lerp(def.cloudOpacity, 0.55f, 0.82f);
+        CloudShape shape = def.cloudShape;
+        Vec3 tint = targetTint(mc, level, weather, def);
 
-        coverage = Mth.lerp(0.004f, coverage, target);
-        altitude = Mth.lerp(0.004f, altitude, altitudeFor(weather));
+        float rate = snap ? 1f : RATE;
+        coverage = Mth.lerp(snap || targetCoverage > 0f ? rate : VANISH_RATE, coverage, targetCoverage);
+        altitude = Mth.lerp(rate, altitude, def.cloudAltitude);
+        opacity = Mth.lerp(rate, opacity, targetOpacity);
+        minThickness = Mth.lerp(rate, minThickness, shape.minThickness);
+        maxThickness = Mth.lerp(rate, maxThickness, shape.maxThickness);
+        puff = Mth.lerp(rate, puff, shape.puff);
+        heightCurve = Mth.lerp(rate, heightCurve, shape.heightCurve);
+        tintR = Mth.lerp(rate, tintR, (float) tint.x);
+        tintG = Mth.lerp(rate, tintG, (float) tint.y);
+        tintB = Mth.lerp(rate, tintB, (float) tint.z);
+    }
 
-        Vec3 typeTint = WeatherPalette.tint(weather);
+    private static Vec3 targetTint(Minecraft mc, ClientLevel level, WeatherTypes weather, WeatherDefinition def) {
+        Vec3 tint = def.cloudTint;
+        if (!weather.hasFog()) return tint;
 
         BlockPos pos = mc.player != null ? mc.player.blockPosition() : BlockPos.ZERO;
-        ResourceLocation biome = mc.level.getBiome(pos).unwrapKey()
-                .map(ResourceKey::location).orElse(null);
-
-        Vec3 targetColor = typeTint;
-        if (weather.hasFog()) {
-            int fog = BiomeFogData.getColor(mc.level, weather, biome);
-            Vec3 fogVec = normalizedHue(fog);
-            targetColor = typeTint.lerp(fogVec, BIOME_INFLUENCE);
-        }
-
-        mixedR = Mth.lerp(0.004f, mixedR, (float) targetColor.x);
-        mixedG = Mth.lerp(0.004f, mixedG, (float) targetColor.y);
-        mixedB = Mth.lerp(0.004f, mixedB, (float) targetColor.z);
-        opacity = Mth.lerp(0.004f, opacity, opacityFor(weather));
-
-        float raw = mc.level.getSunAngle(0f);
-        sunAngle = Math.round(raw / 0.05f) * 0.05f;
-
-        double a = mc.level.getSunAngle(0f) * Math.PI * 2.0;
-        sunDir = new Vec3(Math.cos(a), Math.sin(a), 0).normalize();
-
-        float elevation = (float) sunDir.y;
-        goldenHour = Mth.clamp(1f - Math.abs(elevation) * 3.2f, 0f, 1f);
-
-        Vec3 wind = WindDirection.get(0f);
-        double speed = ClientAtmosphereState.getWindIntensity() * 0.35 + 0.05;
-        scrollX += wind.x * speed;
-        scrollZ += wind.z * speed;
-    }
-
-    public static float threshold() {
-        float raw = 1f - coverage;
-        return Math.round(raw / THRESHOLD_STEP) * THRESHOLD_STEP;
-    }
-
-    public static int tint() {
-        float ambient = WeatherPalette.ambient();
-
-        float r = mixedR * ambient;
-        float g = mixedG * ambient;
-        float b = mixedB * ambient;
-
-        return ((int) (Mth.clamp(r, 0f, 1f) * 255) << 16)
-                | ((int) (Mth.clamp(g, 0f, 1f) * 255) << 8)
-                |  (int) (Mth.clamp(b, 0f, 1f) * 255);
+        ResourceLocation biome = level.getBiome(pos).unwrapKey().map(ResourceKey::location).orElse(null);
+        int fog = BiomeFogData.getColor(level, weather, biome);
+        return tint.lerp(normalizedHue(fog), BIOME_INFLUENCE);
     }
 
     private static Vec3 normalizedHue(int rgb) {
         double r = ((rgb >> 16) & 0xFF) / 255.0;
-        double g = ((rgb >> 8)  & 0xFF) / 255.0;
-        double b = ( rgb        & 0xFF) / 255.0;
+        double g = ((rgb >> 8) & 0xFF) / 255.0;
+        double b = (rgb & 0xFF) / 255.0;
         double lum = Math.max(0.001, (r + g + b) / 3.0);
         return new Vec3(r / lum, g / lum, b / lum);
     }
 
-    public static float opacity() { return opacity; }
-    public static float altitude()  { return altitude; }
-    public static double scrollX()  { return scrollX; }
-    public static double scrollZ()  { return scrollZ; }
-    public static boolean enabled() { return coverage > 0.005f; }
-    public static float sunAngle() { return sunAngle; }
-    public static Vec3 sunDir() { return sunDir; }
-    public static float goldenHour() { return goldenHour; }
-
-    private static float altitudeFor(WeatherTypes t) {
-        return switch (t) {
-            case THUNDERSTORM, HEAVY_RAIN, BLIZZARD -> 128f;
-            case OVERCAST, LIGHT_RAIN, SNOW, HAIL   -> 144f;
-            case CLOUDY, DRIZZLE, FREEZING_RAIN     -> 160f;
-            case SUNNY, WINDY                       -> 184f;
-            case CLEAR                              -> 192f;
-            default                                 -> 160f;
-        };
+    public static boolean visible(Level level) {
+        return level.dimension() == Level.OVERWORLD && coverage > 0.003f;
     }
 
-    private static float baseCoverage(WeatherTypes type) {
-        return switch (type) {
-            case CLEAR         -> 0.04f;
-            case SUNNY         -> 0.12f;
-            case WINDY         -> 0.26f;
-            case MIST          -> 0.35f;
-            case CLOUDY        -> 0.40f;
-            case FOG           -> 0.50f;
-            case DENSE_FOG     -> 0.60f;
-            case DRIZZLE       -> 0.70f;
-            case OVERCAST      -> 0.88f;
-            case LIGHT_RAIN    -> 0.82f;
-            case HEAVY_RAIN    -> 0.94f;
-            case FREEZING_RAIN -> 0.90f;
-            case THUNDERSTORM  -> 0.96f;
-            case SNOW          -> 0.85f;
-            case BLIZZARD      -> 0.97f;
-            case HAIL          -> 0.92f;
-            case SANDSTORM     -> 0.45f;
-            default            -> 0f;
-        };
-    }
+    public static float threshold() { return 1f - coverage; }
 
-    private static float coverageMargin(WeatherTypes type) {
-        return switch (type) {
-            case CLEAR, THUNDERSTORM, BLIZZARD -> 0.04f;
-            case CLOUDY, WINDY, MIST           -> 0.12f;
-            default                            -> 0.08f;
-        };
-    }
+    public static float coverage()     { return coverage; }
+    public static float altitude()     { return altitude; }
+    public static float opacity()      { return opacity; }
+    public static float minThickness() { return minThickness; }
+    public static float maxThickness() { return maxThickness; }
+    public static float puff()         { return puff; }
+    public static float heightCurve()  { return heightCurve; }
+    public static float tintR()        { return tintR; }
+    public static float tintG()        { return tintG; }
+    public static float tintB()        { return tintB; }
 
-    private static float opacityFor(WeatherTypes t) {
-        return switch (t) {
-            case THUNDERSTORM, BLIZZARD, HEAVY_RAIN -> 0.88f / 1.4f;
-            case OVERCAST, FREEZING_RAIN, HAIL      -> 0.80f / 2f;
-            case LIGHT_RAIN, SNOW, DRIZZLE          -> 0.72f / 1.4f;
-            case CLOUDY, FOG, DENSE_FOG             -> 0.45f / 1.5f;
-            case MIST, SANDSTORM                    -> 0.52f / 2f;
-            case WINDY                              -> 0.45f / 1.5f;
-            case SUNNY                              -> 0.40f / 2f;
-            case CLEAR                              -> 0.32f / 2f;
-            default                                 -> 0.60f / 2f;
-        };
-    }
+    public static double driftX(float partialTick) { return WindField.clientState().upperX(partialTick); }
+    public static double driftZ(float partialTick) { return WindField.clientState().upperZ(partialTick); }
 }

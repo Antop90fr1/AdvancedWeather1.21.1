@@ -1,0 +1,11 @@
+{
+  "target": [
+    "minecraft:shaders/core/rendertype_solid.vsh",
+    "minecraft:shaders/core/rendertype_cutout.vsh",
+    "minecraft:shaders/core/rendertype_cutout_mipped.vsh"
+  ],
+  "redirect": [
+    "advancedweather:foliage_sway_vanilla.glsl"
+  ],
+  "priority": 1000
+}

@@ -20,6 +20,7 @@ public class AWFluids {
                             .canConvertToSource(false))
                     .noBlock()
                     .noBucket()
+                    .fluidProperties(p -> p.bucket(null).block(null))
                     .register();
 
     public static void register() {}

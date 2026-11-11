@@ -4,6 +4,7 @@ import net.antopfr.advancedweather.AdvancedWeather;
 import net.antopfr.advancedweather.config.AWCommonConfig;
 import net.antopfr.advancedweather.content.AWDataComponents;
 import net.antopfr.advancedweather.content.item.almanac.WeatherAlmanacItem;
+import net.antopfr.advancedweather.content.item.kite.KiteArmPose;
 import net.antopfr.advancedweather.content.item.kite.KiteColors;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.item.ItemProperties;
@@ -48,7 +49,7 @@ public class AWItemProperties {
                                                     @NotNull InteractionHand hand,
                                                     @NotNull ItemStack stack) {
                 return stack.getOrDefault(AWDataComponents.KITE_DEPLOYED.get(), false)
-                        ? HumanoidModel.ArmPose.THROW_SPEAR
+                        ? KiteArmPose.get()
                         : HumanoidModel.ArmPose.EMPTY;
             }
         }, AWItems.KITE_ITEM.get());

@@ -2,7 +2,8 @@ package net.antopfr.advancedweather.weather.effect.types.chorus_plants;
 
 import net.antopfr.advancedweather.weather.WeatherEffects;
 import net.antopfr.advancedweather.weather.effect.EffectManager;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindDirectionCalc;
+import net.antopfr.advancedweather.weather.wind.WindField;
+import net.antopfr.advancedweather.weather.wind.WindSample;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -60,8 +61,9 @@ public class ChorusPlantEntity extends Entity {
             }
         }
 
-        Vec3 wind = WindDirectionCalc.getDirection(level().getDayTime(), 0f);
-        float speed = 0.09f + windSpeed;
+        WindSample air = WindField.sample(level(), position());
+        Vec3 wind = air.direction();
+        float speed = (float) (0.05 + air.blocksPerTick() * 0.30) * (windSpeed / 0.115f);
 
         this.setDeltaMovement(
                 wind.x * speed,

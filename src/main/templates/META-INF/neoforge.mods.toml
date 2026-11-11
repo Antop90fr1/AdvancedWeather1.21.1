@@ -4,18 +4,20 @@ loaderVersion="${loader_version_range}" #mandatory
 
 license="${mod_license}"
 
-enumExtensions="META-INF/enumextensions.json"
+issueTrackerURL="https://github.com/Antop90fr1/AdvancedWeather1.21.1/issues"
 
 [[mods]] #mandatory
 modId="${mod_id}" #mandatory
 version="${mod_version}" #mandatory
 displayName="${mod_name}" #mandatory
+# Must sit inside [[mods]]: the loader reads it per mod, and ignores it at the top of the file.
+enumExtensions="META-INF/enumextensions.json"
 
-#updateJSONURL="https://change.me.example.invalid/updates.json" #optional
+updateJSONURL="https://api.modrinth.com/updates/advanced-weather/forge_updates.json?neoforge=only"
 
-#displayURL="https://change.me.to.your.mods.homepage.example.invalid/" #optional
+displayURL="https://modrinth.com/mod/advanced-weather"
 
-logoFile="docs/images/logo8.png"
+logoFile="advancedweather_logo.png"
 
 #credits="" #optional
 
@@ -50,7 +52,7 @@ config = "advancedweather.mixins.json"
     type = "required"
     versionRange = "[3.6,)"
     ordering = "NONE"
-    side = "CLIENT"
+    side = "BOTH"
 
 [[dependencies.${mod_id}]]
     modId = "sereneseasons"
@@ -68,6 +70,34 @@ config = "advancedweather.mixins.json"
 
 [[dependencies.${mod_id}]]
     modId="sable"
+    type="optional"
+    versionRange="[*,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="cold_sweat"
+    type="optional"
+    versionRange="[*,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="particlerain"
+    type="optional"
+    versionRange="[*,)"
+    ordering="NONE"
+    side="CLIENT"
+
+[[dependencies.${mod_id}]]
+    modId="atmospherics"
+    type="optional"
+    versionRange="[*,)"
+    ordering="NONE"
+    side="CLIENT"
+
+[[dependencies.${mod_id}]]
+    modId="eclipticseasons"
     type="optional"
     versionRange="[*,)"
     ordering="NONE"

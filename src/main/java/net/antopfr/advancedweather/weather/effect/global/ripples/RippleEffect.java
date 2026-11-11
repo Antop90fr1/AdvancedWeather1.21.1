@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.antopfr.advancedweather.client.state.ClientWeatherState;
 import net.antopfr.advancedweather.util.PlayerChecks;
 import net.antopfr.advancedweather.weather.WeatherTypes;
+import net.antopfr.advancedweather.weather.effect.types.lava_rain.LavaRainSky;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -91,7 +92,8 @@ public class RippleEffect {
             }
         }
 
-        if (ClientWeatherState.getCurrentWeather() == WeatherTypes.LAVA_RAIN
+        WeatherTypes weather = ClientWeatherState.getCurrentWeather();
+        if ((weather == WeatherTypes.LAVA_RAIN || weather == WeatherTypes.NETHERSTORM)
                 && !PlayerChecks.isShielded(level, mc.player.blockPosition())) {
             Vec3 pp = mc.player.position();
             for (int attempt = 0; attempt < 10; attempt++) {
@@ -100,16 +102,19 @@ public class RippleEffect {
                 double x = pp.x + Math.cos(angle) * dist;
                 double z = pp.z + Math.sin(angle) * dist;
 
-                Impact hit = findLavaRainImpact(level, (int) Math.floor(x), (int) Math.floor(pp.y), (int) Math.floor(z));
+                int blockX = (int) Math.floor(x);
+                int blockZ = (int) Math.floor(z);
+                Impact hit = findLavaRainImpact(level, blockX, (int) Math.floor(pp.y), blockZ);
                 if (hit == null) continue;
+
+                LavaRainSky.Opening opening = LavaRainSky.below(level, blockX, hit.y() + 1.5, blockZ);
+                if (opening == null || opening.floor() != hit.y()) continue;
 
                 if (hit.lava()) {
                     if (ripples.size() < MAX_RIPPLES) {
                         float maxSize = 0.5f + random.nextFloat() * 0.4f;
                         ripples.add(new Ripple(new Vec3(x, hit.y() + 1.001, z), maxSize, LAVA_RIPPLE_COLOR));
                     }
-                } else {
-                    level.addParticle(ParticleTypes.LANDING_LAVA, x, hit.y() + 1.0, z, 0.0, 0.0, 0.0);
                 }
             }
         }

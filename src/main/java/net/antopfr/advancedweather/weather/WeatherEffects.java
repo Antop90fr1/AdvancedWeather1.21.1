@@ -23,7 +23,8 @@ public enum WeatherEffects {
     VOID_PARTICLES     ("Void Particles",      WeatherTypes.Dimension.END),
     ENDER_PARTICLES    ("Ender Particles",     WeatherTypes.Dimension.END),
     CHROMATIC_EFFECT   ("Chromatic Effect",    WeatherTypes.Dimension.END),
-    CHORUS_PLANTS      ("Chorus Plants",       WeatherTypes.Dimension.END);
+    CHORUS_PLANTS      ("Chorus Plants",       WeatherTypes.Dimension.END),
+    CHORUS_PETALS      ("Chorus Petals",       WeatherTypes.Dimension.END);
 
     private final String name;
     public final WeatherTypes.Dimension allowedDimension;

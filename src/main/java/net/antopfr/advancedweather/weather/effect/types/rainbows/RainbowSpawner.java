@@ -1,121 +1,128 @@
 package net.antopfr.advancedweather.weather.effect.types.rainbows;
 
-import net.antopfr.advancedweather.client.state.ClientWeatherState;
-import net.antopfr.advancedweather.weather.WeatherEffects;
-import net.antopfr.advancedweather.weather.WeatherTypes;
-import net.minecraft.core.BlockPos;
+import net.antopfr.advancedweather.AdvancedWeather;
+import net.antopfr.advancedweather.api.event.WeatherChangeEvent;
 import net.antopfr.advancedweather.content.advancement.AWAdvancements;
+import net.antopfr.advancedweather.weather.WeatherDefinitions;
+import net.antopfr.advancedweather.weather.WeatherEffects;
+import net.antopfr.advancedweather.weather.WeatherManager;
+import net.antopfr.advancedweather.weather.WeatherTypes;
+import net.antopfr.advancedweather.weather.effect.EffectManager;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Set;
 
-public class RainbowSpawner {
+@EventBusSubscriber(modid = AdvancedWeather.MOD_ID)
+public final class RainbowSpawner {
+
+    private RainbowSpawner() {}
 
     private static final Set<WeatherTypes> RAIN_TYPES = EnumSet.of(
             WeatherTypes.LIGHT_RAIN, WeatherTypes.HEAVY_RAIN, WeatherTypes.DRIZZLE);
-    private static final Set<WeatherTypes> CLEAR_TYPES = EnumSet.of(
-            WeatherTypes.CLEAR, WeatherTypes.SUNNY);
 
-    private static final float DISTANCE      = 220f;
-    private static final float ARC_ANGLE_DEG = 42.3f;
+    private static final int MIN_LIFETIME = 3600;
+    private static final int MAX_LIFETIME = 7200;
+    private static final int SHOWER_CHECK_INTERVAL = 1200;
+    private static final float SHOWER_CHANCE = 0.25f;
 
-    public static void onWeatherTransition(ServerLevel level, WeatherTypes.Dimension dim,
-                                           WeatherTypes from, WeatherTypes to) {
-        if (dim != WeatherTypes.Dimension.OVERWORLD) return;
-        if (!RAIN_TYPES.contains(from) || !CLEAR_TYPES.contains(to)) return;
+    @SubscribeEvent
+    public static void onWeatherChange(WeatherChangeEvent event) {
+        ServerLevel level = event.getLevel();
+        if (!level.dimension().equals(Level.OVERWORLD)) return;
 
-        boolean alreadyExists = false;
-        for (var e : level.getAllEntities()) {
-            if (e instanceof RainbowEntity) { alreadyExists = true; break; }
+        if (WeatherDefinitions.get(event.getCurrent()).hidesSun) {
+            clear(level);
+        } else if (RAIN_TYPES.contains(event.getPrevious()) && !event.getCurrent().isVanillaRaining()) {
+            trySpawn(level);
         }
-        if (alreadyExists) return;
-
-        trySpawn(level);
     }
 
-    public static void onWeatherTick(ServerLevel level, WeatherTypes current, long gameTick) {
-        if (current != WeatherTypes.DRIZZLE) return;
-        if (gameTick % 1200 != 0) return;
-        if (level.getRandom().nextFloat() > 0.25f) return;
+    @SubscribeEvent
+    public static void onLevelTick(LevelTickEvent.Post event) {
+        if (!(event.getLevel() instanceof ServerLevel level) || !level.dimension().equals(Level.OVERWORLD)) return;
+        long gameTime = level.getGameTime();
+        if (gameTime % 20 != 0) return;
 
-        // Évite les doublons
-        boolean alreadyExists = false;
-        for (var e : level.getAllEntities()) {
-            if (e instanceof RainbowEntity) { alreadyExists = true; break; }
+        WeatherManager manager = WeatherManager.get(level);
+        if (isActive(manager, gameTime)) {
+            creditWitnesses(level, manager, gameTime);
+            return;
         }
-        if (alreadyExists) return;
 
-        trySpawn(level);
+        if (gameTime % SHOWER_CHECK_INTERVAL != 0) return;
+        WeatherTypes current = manager.getCurrentWeather(level);
+        if (RAIN_TYPES.contains(current) && !WeatherDefinitions.get(current).hidesSun
+                && level.getRandom().nextFloat() < SHOWER_CHANCE) {
+            trySpawn(level);
+        }
     }
 
-    public static void trySpawn(ServerLevel level) {
-        if (!ClientWeatherState.getActiveEffects().contains(WeatherEffects.RAINBOWS)) return;
+    public static boolean trySpawn(ServerLevel level) {
+        WeatherManager manager = WeatherManager.get(level);
+        if (isActive(manager, level.getGameTime())) return false;
+        if (!EffectManager.get(level).hasEffect(WeatherEffects.RAINBOWS)) return false;
 
-        long dayTime = level.getDayTime() % 24000;
-        boolean isNight = dayTime > 13000 && dayTime < 23000;
-        if (isNight) return;
+        int lifetime = randomLifetime(level);
+        if (!sunWillSuit(level, lifetime)) return false;
+        start(level, lifetime);
+        return true;
+    }
 
-        float sunAngle = level.getSunAngle(0f);
-        float angleRad = sunAngle * Mth.TWO_PI;
-        Vec3 sunDir = new Vec3(Mth.sin(angleRad), Mth.cos(angleRad), 0).normalize();
-        Vec3 antiSun = sunDir.scale(-1);
+    public static boolean spawn(ServerLevel level) {
+        start(level, randomLifetime(level));
+        return Rainbow.sunFactor(Rainbow.sunElevationDeg(level.getTimeOfDay(1f))) > 0.5f;
+    }
 
-        float sunElevationDeg = (float) Math.toDegrees(Math.asin(Mth.clamp((float) sunDir.y, -1f, 1f)));
-        if (sunElevationDeg > 35f) return;
+    public static boolean clear(ServerLevel level) {
+        WeatherManager manager = WeatherManager.get(level);
+        long now = level.getGameTime();
+        if (!isActive(manager, now)) return false;
+        manager.setRainbow(level, manager.getRainbowStart(), Math.min(manager.getRainbowEnd(), now + Rainbow.FADE_OUT_TICKS));
+        return true;
+    }
 
-        List<ServerPlayer> players = level.players();
-        if (players.isEmpty()) return;
+    private static void start(ServerLevel level, int lifetime) {
+        long now = level.getGameTime();
+        WeatherManager.get(level).setRainbow(level, now, now + lifetime);
+    }
 
-        Vec3 center = Vec3.ZERO;
-        for (ServerPlayer p : players) center = center.add(p.position());
-        center = center.scale(1.0 / players.size());
+    private static int randomLifetime(ServerLevel level) {
+        return MIN_LIFETIME + level.getRandom().nextInt(MAX_LIFETIME - MIN_LIFETIME);
+    }
 
-        var random = level.getRandom();
-        double jitterX = (random.nextDouble() - 0.5) * 40.0;
-        double jitterZ = (random.nextDouble() - 0.5) * 40.0;
-        center = center.add(jitterX, 0, jitterZ);
+    private static boolean isActive(WeatherManager manager, long gameTime) {
+        return manager.getRainbowStart() < manager.getRainbowEnd() && gameTime < manager.getRainbowEnd();
+    }
 
-        Vec3 up = Math.abs(antiSun.y) > 0.99 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
-        Vec3 right = up.cross(antiSun).normalize();
+    private static boolean sunWillSuit(ServerLevel level, int lifetime) {
+        long dayTime = level.getDayTime();
+        for (int step = 0; step <= 4; step++) {
+            float timeOfDay = level.dimensionType().timeOfDay(dayTime + (long) lifetime * step / 4);
+            if (Rainbow.sunFactor(Rainbow.sunElevationDeg(timeOfDay)) > 0.5f) return true;
+        }
+        return false;
+    }
 
-        double rad = Math.toRadians(ARC_ANGLE_DEG);
-        Vec3 footDir1 = antiSun.scale(Math.cos(rad)).add(right.scale(Math.sin(rad)));
-        Vec3 footDir2 = antiSun.scale(Math.cos(rad)).add(right.scale(-Math.sin(rad)));
+    private static void creditWitnesses(ServerLevel level, WeatherManager manager, long gameTime) {
+        if (WeatherDefinitions.get(manager.getCurrentWeather(level)).hidesSun) return;
 
-        // Calcul théorique initial (apex = center)
-        Vec3 start = center.add(footDir1.normalize().scale(DISTANCE));
-        Vec3 end   = center.add(footDir2.normalize().scale(DISTANCE));
+        float timeOfDay = level.getTimeOfDay(1f);
+        float shown = Rainbow.envelope(gameTime, manager.getRainbowStart(), manager.getRainbowEnd())
+                * Rainbow.sunFactor(Rainbow.sunElevationDeg(timeOfDay));
+        if (shown < 0.5f) return;
 
-        // Hauteur réelle du sol à ces deux positions
-        int groundYStart = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE,
-                new BlockPos((int) Math.floor(start.x), 0, (int) Math.floor(start.z))).getY();
-        int groundYEnd = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE,
-                new BlockPos((int) Math.floor(end.x), 0, (int) Math.floor(end.z))).getY();
-
-        double avgGroundY = (groundYStart + groundYEnd) / 2.0 + 1.0;
-        double avgTheoreticalY = (start.y + end.y) / 2.0;
-        double verticalCorrection = avgGroundY - avgTheoreticalY;
-
-        // Translation pure de tout le système — ne change pas l'angle du cône
-        Vec3 correctedCenter = new Vec3(center.x, center.y + verticalCorrection, center.z);
-        Vec3 correctedStart   = new Vec3(start.x, start.y + verticalCorrection, start.z);
-        Vec3 correctedEnd     = new Vec3(end.x, end.y + verticalCorrection, end.z);
-
-        RainbowEntity rainbow = new RainbowEntity(level);
-        rainbow.setPos(correctedCenter.x, correctedCenter.y, correctedCenter.z);
-        rainbow.setEndpoints(correctedStart, correctedEnd);
-        rainbow.setAntiSunDirection(antiSun);
-        level.addFreshEntity(rainbow);
-
-        // "Somewhere Over" — a rainbow just appeared; credit everyone in the dimension.
+        double towardsBow = Math.signum(Mth.sin(timeOfDay * Mth.TWO_PI));
         for (ServerPlayer player : level.players()) {
+            if (player.getLookAngle().x * towardsBow < 0.3) continue;
+            if (!level.canSeeSky(BlockPos.containing(player.getEyePosition()))) continue;
             AWAdvancements.grant(player, "somewhere_over");
         }
     }

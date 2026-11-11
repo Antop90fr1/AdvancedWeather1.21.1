@@ -192,22 +192,22 @@ public class AWItems {
     // ROCKETS
     public static final ItemEntry<SeedingRocketItem> SEEDING_ROCKET_WARM = AWRegistrate.get()
             .item("seeding_rocket_warm", p -> new SeedingRocketItem(p,
-                    AtmosphericForcing.Bias.HEATING, +6f, +2f, +8f))
+                    AtmosphericForcing.Bias.HEATING, +6f, +2f, +12f, 6000))
             .register();
 
     public static final ItemEntry<SeedingRocketItem> SEEDING_ROCKET_FROST = AWRegistrate.get()
             .item("seeding_rocket_frost", p -> new SeedingRocketItem(p,
-                    AtmosphericForcing.Bias.COOLING, -6f, -4f, -8f))
+                    AtmosphericForcing.Bias.COOLING, -6f, -2f, -12f, 6000))
             .register();
 
     public static final ItemEntry<SeedingRocketItem> SEEDING_ROCKET_RAIN = AWRegistrate.get()
             .item("seeding_rocket_rain", p -> new SeedingRocketItem(p,
-                    AtmosphericForcing.Bias.SEEDING, -18f, +8f, 0f))
+                    AtmosphericForcing.Bias.SEEDING, -18f, +8f, 0f, 2400))
             .register();
 
     public static final ItemEntry<SeedingRocketItem> SEEDING_ROCKET_CLEAR = AWRegistrate.get()
             .item("seeding_rocket_clear", p -> new SeedingRocketItem(p,
-                    AtmosphericForcing.Bias.DISSIPATING, +18f, -8f, 0f))
+                    AtmosphericForcing.Bias.DISSIPATING, +18f, -8f, 0f, 2400))
             .register();
 
     public static void register() {}

@@ -1,6 +1,7 @@
 package net.antopfr.advancedweather.content.block.calibration;
 
 import net.antopfr.advancedweather.AdvancedWeather;
+import net.antopfr.advancedweather.util.Key;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -96,8 +97,8 @@ public class FiberCalibrationScreen extends CalibrationScreen {
         int tipCol = inTarget ? 0xFF33CC44 : 0xFFCCCCCC;
         g.fill(drawX, tipY - 1, drawX + drawW, tipY + 1, tipCol);
 
-        g.drawString(font, "§0Set the guide,", x + 145, y + 44, 0x88776655, false);
-        g.drawString(font, "§0let it follow", x + 145, y + 56, 0x88776655, false);
+        g.drawString(font, "§0" + Key.t("advancedweather.calibration.fiber.hint.1"), x + 145, y + 44, 0x88776655, false);
+        g.drawString(font, "§0" + Key.t("advancedweather.calibration.fiber.hint.2"), x + 145, y + 56, 0x88776655, false);
     }
 
     @Override

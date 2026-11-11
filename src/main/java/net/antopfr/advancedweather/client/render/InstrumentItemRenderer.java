@@ -5,9 +5,11 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.antopfr.advancedweather.AdvancedWeather;
 import net.antopfr.advancedweather.client.state.ClientAtmosphereState;
+import net.antopfr.advancedweather.client.wind.ClientWind;
+import net.antopfr.advancedweather.weather.wind.WindScale;
 import net.antopfr.advancedweather.content.item.AWItems;
+import net.antopfr.advancedweather.compat.catnip.CatnipCompat;
 import net.antopfr.advancedweather.weather.AtmosphericSystem;
-import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
@@ -93,7 +95,7 @@ public class InstrumentItemRenderer extends BlockEntityWithoutLevelRenderer {
     }
 
     private void updateSmoothing() {
-        long now = AnimationTickHolder.getTicks();
+        long now = CatnipCompat.animationTicks();
         if (now == lastFrameTime) return;
         lastFrameTime = now;
 
@@ -106,7 +108,7 @@ public class InstrumentItemRenderer extends BlockEntityWithoutLevelRenderer {
         smoothedTemp = Mth.lerp(0.08f, smoothedTemp, targetT);
         smoothedHumidity = Mth.lerp(0.08f, smoothedHumidity, targetH);
 
-        float wind = ClientAtmosphereState.getWindIntensity();
+        float wind = Math.min(1f, WindScale.kmhToIntensity(ClientWind.localKmh()));
         spinAngle = (spinAngle + 2f + wind * 22f) % 360f;
     }
 

@@ -1,6 +1,7 @@
 package net.antopfr.advancedweather.content.block.autosampler;
 
 import net.antopfr.advancedweather.network.toserver.SetSamplerIntervalPacket;
+import net.antopfr.advancedweather.util.Key;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -46,27 +47,27 @@ public class AutoSamplerScreen extends Screen {
 
         g.fill(x, y, x + PANEL_W, y + PANEL_H, ((int) (ease * 0xE0) << 24) | 0x101418);
         g.fill(x, y, x + PANEL_W, y + 18, (alpha << 24) | 0x1E2630);
-        g.drawCenteredString(font, "§lAuto-Sampler", x + PANEL_W / 2, y + 5, withAlpha(0xFFFFFF, alpha));
+        g.drawCenteredString(font, "§l" + Key.t("block.advancedweather.auto_sampler"), x + PANEL_W / 2, y + 5, withAlpha(0xFFFFFF, alpha));
 
         int line = y + 26;
         int left = x + 10;
 
         String stationLabel = sampler.stationLabel();
-        g.drawString(font, "Station", left, line, withAlpha(0xAAAAAA, alpha), true);
-        g.drawString(font, stationLabel != null ? "§b" + stationLabel : "§cnot linked",
+        g.drawString(font, Key.t("advancedweather.autosampler.station"), left, line, withAlpha(0xAAAAAA, alpha), true);
+        g.drawString(font, stationLabel != null ? "§b" + stationLabel : "§c" + Key.t("advancedweather.autosampler.not_linked"),
                 left + 60, line, withAlpha(0xFFFFFF, alpha), true);
         line += 12;
 
         String archiveLabel = sampler.archiveLabel();
-        g.drawString(font, "Archive", left, line, withAlpha(0xAAAAAA, alpha), true);
-        g.drawString(font, archiveLabel != null ? "§b" + archiveLabel : "§cnot linked",
+        g.drawString(font, Key.t("advancedweather.autosampler.archive"), left, line, withAlpha(0xAAAAAA, alpha), true);
+        g.drawString(font, archiveLabel != null ? "§b" + archiveLabel : "§c" + Key.t("advancedweather.autosampler.not_linked"),
                 left + 60, line, withAlpha(0xFFFFFF, alpha), true);
         line += 16;
 
         g.fill(left, line, x + PANEL_W - 10, line + 1, ((int) (ease * 0x30)) << 24 | 0xFFFFFF);
         line += 8;
 
-        g.drawString(font, "Sampling interval", left, line, withAlpha(0xAAAAAA, alpha), true);
+        g.drawString(font, Key.t("advancedweather.autosampler.interval"), left, line, withAlpha(0xAAAAAA, alpha), true);
         line += 13;
 
         hoveredPreset = -1;
@@ -88,14 +89,14 @@ public class AutoSamplerScreen extends Screen {
 
         var result = sampler.getLastResult();
         String status = switch (result) {
-            case IDLE -> "§8Waiting for first sample…";
-            case OK -> "§aTransmitting";
-            case NO_STATION -> "§cStation unreachable";
-            case NO_ARCHIVE -> "§cArchive unreachable";
-            case STATION_NO_SENSORS -> "§6Station has no sensors";
-            case ARCHIVE_REJECTED -> "§6Archive rejected last sample";
+            case IDLE -> "§8" + Key.t("advancedweather.autosampler.status.idle");
+            case OK -> "§a" + Key.t("advancedweather.autosampler.status.ok");
+            case NO_STATION -> "§c" + Key.t("advancedweather.autosampler.status.no_station");
+            case NO_ARCHIVE -> "§c" + Key.t("advancedweather.autosampler.status.no_archive");
+            case STATION_NO_SENSORS -> "§6" + Key.t("advancedweather.autosampler.status.no_sensors");
+            case ARCHIVE_REJECTED -> "§6" + Key.t("advancedweather.autosampler.status.rejected");
         };
-        g.drawString(font, "Status: " + status, left, line, withAlpha(0xCCCCCC, alpha), true);
+        g.drawString(font, Key.label("advancedweather.autosampler.status") + status, left, line, withAlpha(0xCCCCCC, alpha), true);
     }
 
     @Override

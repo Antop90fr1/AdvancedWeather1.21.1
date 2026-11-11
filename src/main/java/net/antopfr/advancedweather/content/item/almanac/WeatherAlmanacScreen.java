@@ -5,7 +5,7 @@ import net.antopfr.advancedweather.content.WeatherRecord;
 import net.antopfr.advancedweather.util.Key;
 import net.antopfr.advancedweather.util.ValueColors;
 import net.antopfr.advancedweather.weather.WeatherTypes;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindSpeedCalculation;
+import net.antopfr.advancedweather.weather.wind.WindScale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -90,7 +90,7 @@ public class WeatherAlmanacScreen extends Screen {
     private Button prevButton, nextButton;
 
     public WeatherAlmanacScreen(ItemStack almanacStack) {
-        super(Component.literal("Weather Almanac"));
+        super(Component.translatable("item.advancedweather.weather_almanac"));
         this.records = WeatherAlmanacItem.getRecords(almanacStack);
     }
 
@@ -147,17 +147,6 @@ public class WeatherAlmanacScreen extends Screen {
         }
     }
 
-    private void jumpToSpread(int target) {
-        if (isOpening() || turnTicks > 0 || target == spread) return;
-        displayedSpread = spread;
-        turnDirection = target > spread ? 1 : -1;
-        spread = target;
-        turnTicks = TURN_DURATION_TICKS;
-        Objects.requireNonNull(minecraft).getSoundManager().play(
-                SimpleSoundInstance.forUI(SoundEvents.BOOK_PAGE_TURN, 1.0f));
-        updateButtons();
-    }
-
     @Override
     public void tick() {
         super.tick();
@@ -201,7 +190,7 @@ public class WeatherAlmanacScreen extends Screen {
 
             float pulse = 0.6f + 0.4f * Mth.sin((Objects.requireNonNull(minecraft).gui.getGuiTicks() + partialTick) * 0.15f);
             int hintAlpha = (int) (pulse * 255);
-            String hint = "Click to open";
+            String hint = Key.t("advancedweather.almanac.click_to_open");
             g.drawString(font, hint, cx + COVER_W / 2 - font.width(hint) / 2,
                     cy + COVER_H + 6, withAlpha(0xFFFFFF, hintAlpha), true);
             return;
@@ -342,8 +331,8 @@ public class WeatherAlmanacScreen extends Screen {
             long day = r.gameTime() / 24000L;
             int hours = (int) ((r.gameTime() + 6000) / 1000 % 24);
             int minutes = (int) ((r.gameTime() % 1000) * 60 / 1000);
-            String entry = String.format("Day %d, %02d:%02d - %s",
-                    day, hours, minutes, r.weatherType().displayString());
+            String entry = Component.translatable("advancedweather.time.day_clock", day,
+                    String.format("%02d:%02d", hours, minutes)).getString() + " - " + r.weatherType().displayString();
             if (font.width(entry) > contentW - 12) {
                 entry = font.plainSubstrByWidth(entry, contentW - 18) + "…";
             }
@@ -389,7 +378,8 @@ public class WeatherAlmanacScreen extends Screen {
         long day = r.gameTime() / 24000L;
         int hours = (int) ((r.gameTime() + 6000) / 1000 % 24);
         int minutes = (int) ((r.gameTime() % 1000) * 60 / 1000);
-        drawCentered(g, String.format("Day %d - %02d:%02d", day, hours, minutes),
+        drawCentered(g, Component.translatable("advancedweather.time.day_clock", day,
+                        String.format("%02d:%02d", hours, minutes)).getString(),
                 centerX, py + 2, INK_DARK);
 
         drawWeatherIcon(g, r.weatherType(), centerX - 10, py + 18, 20);
@@ -410,12 +400,12 @@ public class WeatherAlmanacScreen extends Screen {
                 String.format("%.0f%% [%s]", r.humidity(), ValueColors.humidityLabel(r.humidity())),
                 ValueColors.humidity(r.humidity())); line += 15;
 
-        float kmh = r.windIntensity() * r.windIntensity() * 120f;
+        float kmh = WindScale.intensityToKmh(r.windIntensity());
         drawValueLine(g, labelX, line, Key.t("advancedweather.wind"),
                 String.format("%.1f km/h", kmh),
                 ValueColors.wind(kmh)); line += 13;
 
-        drawCentered(g, "[" + WindSpeedCalculation.getBeaufortLabel(kmh) + "]",
+        drawCentered(g, "[" + WindScale.beaufort(kmh).getString() + "]",
                 centerX, line, INK_SOFT);
 
         String origin = r.stationName().isBlank() ? r.biome().getPath()

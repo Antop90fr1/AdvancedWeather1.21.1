@@ -2,7 +2,8 @@ package net.antopfr.advancedweather.weather.effect.types.tumbleweeds;
 
 import net.antopfr.advancedweather.weather.effect.EffectManager;
 import net.antopfr.advancedweather.weather.WeatherEffects;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindDirectionCalc;
+import net.antopfr.advancedweather.weather.wind.WindField;
+import net.antopfr.advancedweather.weather.wind.WindSample;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -58,8 +59,9 @@ public class TumbleweedEntity extends Entity {
             }
         }
 
-        Vec3 wind = WindDirectionCalc.getDirection(level().getDayTime(), 0f);
-        float speed = 0.10f + windSpeed;
+        WindSample air = WindField.sample(level(), position());
+        Vec3 wind = air.direction();
+        float speed = (float) (0.06 + air.blocksPerTick() * 0.32) * (windSpeed / 0.14f);
 
         this.setDeltaMovement(
                 wind.x * speed,

@@ -1,6 +1,7 @@
 package net.antopfr.advancedweather.content.block.calibration;
 
 import net.antopfr.advancedweather.AdvancedWeather;
+import net.antopfr.advancedweather.util.Key;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -98,8 +99,8 @@ public class SpringCalibrationScreen extends CalibrationScreen {
         int hookY = cy + coilsHeight;
         g.blit(SPRING_BOTTOM, springX, hookY, SPRING_W, BOTTOM_H, 0, 0, SPRING_W, BOTTOM_H, SPRING_W, BOTTOM_H);
 
-        g.drawString(font, "§0Drag the spring", x + 145, y + 44, 0x88776655, false);
-        g.drawString(font, "§0into the band", x + 145, y + 56, 0x88776655, false);
+        g.drawString(font, "§0" + Key.t("advancedweather.calibration.spring.hint.1"), x + 145, y + 44, 0x88776655, false);
+        g.drawString(font, "§0" + Key.t("advancedweather.calibration.spring.hint.2"), x + 145, y + 56, 0x88776655, false);
     }
 
     private boolean overHook(double mx, double my) {

@@ -2,7 +2,8 @@ package net.antopfr.advancedweather.client.debug;
 
 import net.antopfr.advancedweather.client.ClientLocalHistory;
 import net.antopfr.advancedweather.client.state.ClientAtmosphereState;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindSpeedCalculation;
+import net.antopfr.advancedweather.client.wind.ClientWind;
+import net.antopfr.advancedweather.weather.wind.WindScale;
 import net.antopfr.advancedweather.weather.WeatherTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -12,7 +13,7 @@ import net.minecraft.util.Mth;
 
 import java.util.List;
 
-import static net.antopfr.advancedweather.weather.effect.global.wind.WindSpeedCalculation.MAX_WIND_KMH;
+import static net.antopfr.advancedweather.weather.wind.WindScale.MAX_KMH;
 
 public class WeatherHistoryDebug extends Screen {
 
@@ -119,8 +120,8 @@ public class WeatherHistoryDebug extends Screen {
         windGraphY += 10;
         renderWindCurve(g, localEntries, graphX, windGraphY, graphW, WIND_GRAPH_H, mouseX, mouseY, currentTick);
 
-        g.drawString(font, String.format("%.0f", MAX_WIND_KMH),        PADDING, windGraphY, 0x666666, false);
-        g.drawString(font, String.format("%.0f", MAX_WIND_KMH * 0.50f), PADDING, windGraphY + (WIND_GRAPH_H * 2 / 4) - 4, 0x666666, false);
+        g.drawString(font, String.format("%.0f", MAX_KMH),        PADDING, windGraphY, 0x666666, false);
+        g.drawString(font, String.format("%.0f", MAX_KMH * 0.50f), PADDING, windGraphY + (WIND_GRAPH_H * 2 / 4) - 4, 0x666666, false);
         g.drawString(font, "0",                                 PADDING, windGraphY + WIND_GRAPH_H - 8, 0x666666, false);
 
         // 6. Informations de bas de page
@@ -146,8 +147,8 @@ public class WeatherHistoryDebug extends Screen {
         g.drawString(font, "§7Humidity     §9" + String.format("%.0f%%", curHum), col2X, infoY + 10, 0xFFFFFF, false);
         g.drawString(font, "§7Wind Intens. §f" + String.format("%.3f", windIntensity), col2X, infoY + 20, 0xFFFFFF, false);
 
-        float currentKmh = WindSpeedCalculation.getWindSpeed();
-        g.drawString(font, "§7Wind Speed   §f" + String.format("%.1f", currentKmh) + " km/h  " + WindSpeedCalculation.getBeaufortLabel(currentKmh), PADDING, infoY + 32, 0xFFFFFF, false);
+        float currentKmh = ClientWind.regionalKmh();
+        g.drawString(font, "§7Wind Speed   §f" + String.format("%.1f", currentKmh) + " km/h  " + WindScale.beaufort(currentKmh).getString(), PADDING, infoY + 32, 0xFFFFFF, false);
 
         g.drawCenteredString(font, "§8[ESC] Close", width / 2, height - PADDING, 0x666666);
 
@@ -278,16 +279,16 @@ public class WeatherHistoryDebug extends Screen {
         for (int i = 0; i < entries.size(); i++) {
             ClientLocalHistory.LocalEntry a = entries.get(i);
             int x1 = x + (int)((a.gameTick() - minTick) * w / range);
-            float kmhA = a.localWind() * a.localWind() * MAX_WIND_KMH;
-            int y1 = y + h - (int)(Mth.clamp(kmhA / MAX_WIND_KMH, 0f, 1f) * h);
+            float kmhA = WindScale.intensityToKmh(a.localWind());
+            int y1 = y + h - (int)(Mth.clamp(kmhA / MAX_KMH, 0f, 1f) * h);
 
             g.fill(x1 - 1, y1 - 1, x1 + 1, y1 + 1, 0xFFAAFFFA);
 
             if (i < entries.size() - 1) {
                 ClientLocalHistory.LocalEntry b = entries.get(i + 1);
                 int x2 = x + (int)((b.gameTick() - minTick) * w / range);
-                float kmhB = b.localWind() * b.localWind() * MAX_WIND_KMH;
-                int y2 = y + h - (int)(Mth.clamp(kmhB / MAX_WIND_KMH, 0f, 1f) * h);
+                float kmhB = WindScale.intensityToKmh(b.localWind());
+                int y2 = y + h - (int)(Mth.clamp(kmhB / MAX_KMH, 0f, 1f) * h);
                 drawLine(g, x1, y1, x2, y2, 0xFF55FFFF);
             }
 
@@ -296,7 +297,7 @@ public class WeatherHistoryDebug extends Screen {
                 hoveredEntry = a;
                 hoveredX = mouseX;
                 hoveredY = mouseY;
-                hoveredValueText = String.format("%.1f km/h (%s)", kmhA, WindSpeedCalculation.getBeaufortLabel(kmhA));
+                hoveredValueText = String.format("%.1f km/h (%s)", kmhA, WindScale.beaufort(kmhA).getString());
                 hoveredTimeAgo = (currentTick - a.gameTick()) / 1200;
             }
         }

@@ -3,6 +3,7 @@ package net.antopfr.advancedweather.content.block.detector;
 import com.mojang.serialization.MapCodec;
 import net.antopfr.advancedweather.content.advancement.AWAdvancements;
 import net.antopfr.advancedweather.util.AWTooltips;
+import net.antopfr.advancedweather.util.PlayerChecks;
 import net.antopfr.advancedweather.weather.WeatherManager;
 import net.antopfr.advancedweather.weather.WeatherTypes;
 import net.minecraft.core.BlockPos;
@@ -22,6 +23,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
@@ -35,6 +37,7 @@ public class WeatherDetectorBlock extends Block {
 
     public static final EnumProperty<DetectionMode> MODE = EnumProperty.create("mode", DetectionMode.class);
     public static final IntegerProperty POWER = IntegerProperty.create("power", 0, 15);
+    public static final BooleanProperty EARLY = BooleanProperty.create("early");
 
     public enum DetectionMode implements StringRepresentable {
         ANY_PRECIPITATION("any_precipitation"),
@@ -59,7 +62,8 @@ public class WeatherDetectorBlock extends Block {
         super(properties);
         registerDefaultState(stateDefinition.any()
                 .setValue(MODE, DetectionMode.ANY_PRECIPITATION)
-                .setValue(POWER, 0));
+                .setValue(POWER, 0)
+                .setValue(EARLY, false));
     }
 
     @Override
@@ -69,14 +73,14 @@ public class WeatherDetectorBlock extends Block {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(MODE, POWER);
+        builder.add(MODE, POWER, EARLY);
     }
 
     @Override
     protected @NotNull InteractionResult useWithoutItem(@NotNull BlockState state, Level level, @NotNull BlockPos pos,
                                                         @NotNull Player player, @NotNull BlockHitResult hit) {
         if (level.isClientSide) {
-            WeatherDetectorScreenOpener.open(pos, state.getValue(MODE));
+            WeatherDetectorScreenOpener.open(pos, state.getValue(MODE), state.getValue(EARLY));
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
     }
@@ -113,24 +117,36 @@ public class WeatherDetectorBlock extends Block {
     }
 
     private int computePower(BlockState state, ServerLevel level, BlockPos pos) {
-        if (!level.canSeeSky(pos.above())) return 0; // exposition requise
+        if (!seesWeather(level, pos)) return 0;
 
-        WeatherTypes weather = WeatherManager.get(level).getCurrentWeather(level);
+        WeatherManager manager = WeatherManager.get(level);
         DetectionMode mode = state.getValue(MODE);
 
+        if (mode == DetectionMode.WIND) {
+            return Mth.clamp(Math.round(manager.getWindIntensity(level) * 15f), 0, 15);
+        }
+        if (detects(mode, manager.getCurrentWeather(level))) return 15;
+
+        WeatherTypes coming = state.getValue(EARLY) ? manager.getComingWeather(level) : null;
+        return coming != null && detects(mode, coming) ? 15 : 0;
+    }
+
+    private static boolean seesWeather(ServerLevel level, BlockPos pos) {
+        if (level.dimensionType().hasSkyLight()) return level.canSeeSky(pos.above());
+        return !PlayerChecks.isShielded(level, pos);
+    }
+
+    private static boolean detects(DetectionMode mode, WeatherTypes weather) {
         return switch (mode) {
-            case WIND -> {
-                float wi = WeatherManager.get(level).getWindIntensity(level);
-                yield Mth.clamp(Math.round(wi * 15f), 0, 15);
-            }
-            case ANY_PRECIPITATION -> isPrecipitating(weather) ? 15 : 0;
-            case STORM -> isStorm(weather) ? 15 : 0;
+            case WIND -> false;
+            case ANY_PRECIPITATION -> isPrecipitating(weather);
+            case STORM -> isStorm(weather);
             case THUNDERSTORM -> weather == WeatherTypes.THUNDERSTORM
-                    || weather == WeatherTypes.NETHERSTORM ? 15 : 0;
-            case HAIL -> weather == WeatherTypes.HAIL ? 15 : 0;
+                    || weather == WeatherTypes.NETHERSTORM;
+            case HAIL -> weather == WeatherTypes.HAIL;
             case SNOW -> weather == WeatherTypes.SNOW
-                    || weather == WeatherTypes.BLIZZARD ? 15 : 0;
-            case RAIN -> isRainType(weather) ? 15 : 0;
+                    || weather == WeatherTypes.BLIZZARD;
+            case RAIN -> isRainType(weather);
         };
     }
 
@@ -157,6 +173,6 @@ public class WeatherDetectorBlock extends Block {
     @Override
     public void appendHoverText(@NotNull ItemStack stack, Item.@NotNull TooltipContext context,
                                 @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
-        AWTooltips.append(tooltip, "advancedweather.block_tooltip.weather_detector", 3, null);
+        AWTooltips.append(tooltip, "advancedweather.block_tooltip.weather_detector", 4, null);
     }
 }

@@ -37,9 +37,8 @@ public final class AWTooltips {
                 tooltip.add(Component.translatable(hintKey).withStyle(ChatFormatting.BLUE));
             }
         } else {
-            tooltip.add(Component.literal("Hold ").withStyle(ChatFormatting.WHITE)
-                    .append(Component.literal("[Shift]").withStyle(ChatFormatting.GRAY))
-                    .append(Component.literal(" for more info").withStyle(ChatFormatting.WHITE)));
+            tooltip.add(Component.translatable("advancedweather.tooltip.more_info",
+                    Component.literal("[Shift]").withStyle(ChatFormatting.GRAY)).withStyle(ChatFormatting.WHITE));
         }
     }
 

@@ -1,0 +1,9 @@
+{
+  "target": [
+    "sodium:shaders/blocks/block_layer_opaque.fsh"
+  ],
+  "redirect": [
+    "advancedweather:frozen_ground_sodium_fragment.glsl"
+  ],
+  "priority": 900
+}

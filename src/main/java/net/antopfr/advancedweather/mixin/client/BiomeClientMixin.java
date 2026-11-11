@@ -1,7 +1,8 @@
 package net.antopfr.advancedweather.mixin.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.antopfr.advancedweather.client.state.ClientWeatherState;
-import net.antopfr.advancedweather.weather.WeatherTypes;
+import net.antopfr.advancedweather.compat.particlerain.ParticleRainCompat;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.biome.Biome;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,19 +15,25 @@ public class BiomeClientMixin {
 
     @Inject(method = "getPrecipitationAt", at = @At("HEAD"), cancellable = true)
     private void onGetPrecipitationAt(BlockPos pos, CallbackInfoReturnable<Biome.Precipitation> cir) {
-        if (cir.isCancelled()) return;
+        if (cir.isCancelled() || !RenderSystem.isOnRenderThread()) return;
 
-        WeatherTypes type = ClientWeatherState.getCurrentWeather();
+        if (ParticleRainCompat.asking()) {
+            Biome.Precipitation seen = ParticleRainCompat.precipitation();
+            if (seen != null) {
+                cir.setReturnValue(seen);
+                return;
+            }
+        }
 
-        if (type == WeatherTypes.SNOW || type == WeatherTypes.BLIZZARD) {
-            cir.setReturnValue(Biome.Precipitation.SNOW);
-        } else if (type == WeatherTypes.DRIZZLE
-                || type == WeatherTypes.LIGHT_RAIN
-                || type == WeatherTypes.HEAVY_RAIN
-                || type == WeatherTypes.FREEZING_RAIN
-                || type == WeatherTypes.THUNDERSTORM
-                || type == WeatherTypes.HAIL) {
-            cir.setReturnValue(Biome.Precipitation.RAIN);
+        Biome.Precipitation falling = ClientWeatherState.precipitating().precipitation();
+        if (falling != Biome.Precipitation.NONE) cir.setReturnValue(falling);
+    }
+
+    @Inject(method = "hasPrecipitation", at = @At("HEAD"), cancellable = true)
+    private void advancedweather$anyBiome(CallbackInfoReturnable<Boolean> cir) {
+        if (RenderSystem.isOnRenderThread()
+                && ClientWeatherState.precipitating().precipitation() != Biome.Precipitation.NONE) {
+            cir.setReturnValue(true);
         }
     }
 }

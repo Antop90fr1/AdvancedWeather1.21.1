@@ -2,9 +2,11 @@ package net.antopfr.advancedweather.content.item;
 
 import net.antopfr.advancedweather.client.render.AWClientRenderers;
 import net.antopfr.advancedweather.config.AWClientConfig;
+import net.antopfr.advancedweather.util.Key;
 import net.antopfr.advancedweather.util.UnitFormat;
 import net.antopfr.advancedweather.util.ValueColors;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindSpeedCalculation;
+import net.antopfr.advancedweather.client.wind.ClientWind;
+import net.antopfr.advancedweather.weather.wind.WindScale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.network.chat.Component;
@@ -32,12 +34,12 @@ public class AnemometerItem extends Item {
     @Override
     public @NotNull InteractionResultHolder<ItemStack> use(Level level, @NotNull Player player, @NotNull InteractionHand hand) {
         if (level.isClientSide) {
-            float speedKmh = WindSpeedCalculation.getWindSpeed();
-            String beaufort = WindSpeedCalculation.getBeaufortLabel(speedKmh);
+            float speedKmh = ClientWind.localKmh();
+            String beaufort = WindScale.beaufort(speedKmh).getString();
 
             int rgbColor = ValueColors.wind(speedKmh);
 
-            MutableComponent prefix = Component.literal("§7Wind Speed: ");
+            MutableComponent prefix = Component.literal("§7" + Key.label("advancedweather.wind_speed"));
             MutableComponent windValue = Component.literal(UnitFormat.wind(speedKmh))
                     .withStyle(style -> style.withColor(TextColor.fromRgb(rgbColor)));
             MutableComponent suffix = Component.literal(String.format(" §7| §f[%s]", beaufort));
@@ -51,12 +53,12 @@ public class AnemometerItem extends Item {
     public void appendHoverText(@NotNull ItemStack stack, @NotNull TooltipContext context,
                                 @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
         if (Minecraft.getInstance().level != null) {
-            float speedKmh = WindSpeedCalculation.getWindSpeed();
-            String beaufort = WindSpeedCalculation.getBeaufortLabel(speedKmh);
+            float speedKmh = ClientWind.localKmh();
+            String beaufort = WindScale.beaufort(speedKmh).getString();
 
             int rgbColor = ValueColors.wind(speedKmh);
 
-            MutableComponent prefix = Component.literal("§7Wind Speed: ");
+            MutableComponent prefix = Component.literal("§7" + Key.label("advancedweather.wind_speed"));
             MutableComponent windValue = Component.literal(UnitFormat.wind(speedKmh))
                     .withStyle(style -> style.withColor(TextColor.fromRgb(rgbColor)));
             MutableComponent suffix = Component.literal(String.format(" §7(%s)", beaufort));

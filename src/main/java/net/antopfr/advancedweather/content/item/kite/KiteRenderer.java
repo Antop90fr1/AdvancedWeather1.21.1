@@ -5,7 +5,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.antopfr.advancedweather.AdvancedWeather;
 import net.antopfr.advancedweather.content.entity.KiteEntity;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindDirection;
+import net.antopfr.advancedweather.weather.wind.WindField;
+import net.antopfr.advancedweather.weather.wind.WindSample;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -15,7 +16,6 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
@@ -59,9 +59,11 @@ public class KiteRenderer extends EntityRenderer<KiteEntity> {
     public void render(KiteEntity kite, float yaw, float partialTick,
                        PoseStack pose, @NotNull MultiBufferSource buffers, int light) {
 
-        Vec3 wind = WindDirection.get(partialTick);
+        Vec3 at = kite.getPosition(partialTick);
+        WindSample air = WindField.sample(kite.level(), at.x, at.y, at.z, partialTick);
+        Vec3 wind = air.direction();
         float windYaw = (float) Math.toDegrees(Math.atan2(wind.z, wind.x));
-        float intensity = WindDirection.getIntensityClient();
+        float intensity = Math.min(1f, air.intensity());
 
         float rotY = -windYaw + 270f - 19f;
         float rotX = 70f - intensity * 20f;
@@ -107,7 +109,7 @@ public class KiteRenderer extends EntityRenderer<KiteEntity> {
         Vec3 anchor = new Vec3(b.x, b.y, b.z);
 
         Vec3 kitePos = kite.getPosition(partialTick);
-        Vec3 handPos = handPosition(owner, partialTick);
+        Vec3 handPos = KiteHold.handPosition(owner, kite, partialTick);
         Vec3 target = anchor.add(handPos.subtract(kitePos.add(anchor)));
 
         int lightKite = LevelRenderer.getLightColor(kite.level(),
@@ -115,27 +117,9 @@ public class KiteRenderer extends EntityRenderer<KiteEntity> {
         int lightHand = LevelRenderer.getLightColor(owner.level(),
                 BlockPos.containing(handPos));
 
+        double sag = owner.isFallFlying() ? -0.08 : -0.45;
         cord(buffers, pose.last().pose(), anchor, target,
-                -0.45, TETHER_WIDTH, lightKite, lightHand, 24);
-    }
-
-    private static Vec3 handPosition(Player player, float partialTick) {
-        double px = Mth.lerp(partialTick, player.xo, player.getX());
-        double py = Mth.lerp(partialTick, player.yo, player.getY());
-        double pz = Mth.lerp(partialTick, player.zo, player.getZ());
-
-        float bodyYaw = Mth.lerp(partialTick, player.yBodyRotO, player.yBodyRot);
-        double yawRad = Math.toRadians(bodyYaw);
-
-        boolean right = player.getMainArm() == HumanoidArm.RIGHT;
-        double side = right ? -0.30 : 0.30;
-        double back = -0.15;
-
-        double ox = Math.cos(yawRad) * side - Math.sin(yawRad) * back;
-        double oz = Math.sin(yawRad) * side + Math.cos(yawRad) * back;
-        double oy = player.isCrouching() ? 1.55 : 1.85;
-
-        return new Vec3(px + ox, py + oy, pz + oz);
+                sag, TETHER_WIDTH, lightKite, lightHand, 24);
     }
 
     private static void cord(MultiBufferSource buffers, Matrix4f mat,

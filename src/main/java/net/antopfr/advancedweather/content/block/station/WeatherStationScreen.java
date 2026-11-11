@@ -12,8 +12,10 @@ import net.antopfr.advancedweather.util.Key;
 import net.antopfr.advancedweather.util.ValueColors;
 import net.antopfr.advancedweather.weather.WeatherTypes;
 import net.antopfr.advancedweather.weather.FeelsLikeCalculation;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindSpeedCalculation;
-import net.createmod.catnip.animation.LerpedFloat;
+import net.antopfr.advancedweather.client.wind.ClientWind;
+import net.antopfr.advancedweather.weather.wind.WindScale;
+import net.antopfr.advancedweather.compat.catnip.CatnipCompat;
+import net.antopfr.advancedweather.compat.catnip.Smoothed;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -43,10 +45,10 @@ public class WeatherStationScreen extends Screen {
 
     private float openProgress = 0f;
 
-    private final LerpedFloat displayTemp     = LerpedFloat.linear();
-    private final LerpedFloat displayPressure = LerpedFloat.linear();
-    private final LerpedFloat displayHumidity = LerpedFloat.linear();
-    private final LerpedFloat displayWind     = LerpedFloat.linear();
+    private final Smoothed displayTemp     = CatnipCompat.smoothed();
+    private final Smoothed displayPressure = CatnipCompat.smoothed();
+    private final Smoothed displayHumidity = CatnipCompat.smoothed();
+    private final Smoothed displayWind     = CatnipCompat.smoothed();
 
     private boolean firstTick = true;
 
@@ -55,7 +57,7 @@ public class WeatherStationScreen extends Screen {
     private boolean editingName = false;
 
     public WeatherStationScreen(WeatherStationBlockEntity station) {
-        super(Component.literal("Weather Station"));
+        super(Component.translatable("block.advancedweather.weather_station"));
         this.station = station;
     }
 
@@ -65,7 +67,7 @@ public class WeatherStationScreen extends Screen {
 
         nameBox = new EditBox(font,
                 (width - PANEL_W) / 2 + 40, (height - PANEL_H) / 2 + 4, PANEL_W - 80, 12,
-                Component.literal("Station name"));
+                Component.translatable("advancedweather.station.name"));
         nameBox.setMaxLength(32);
         nameBox.setValue(station.getStationName());
         nameBox.setVisible(false);
@@ -89,10 +91,10 @@ public class WeatherStationScreen extends Screen {
             firstTick = false;
         }
 
-        displayTemp.chase(ClientAtmosphereState.getLocalTemperature(), 0.25, LerpedFloat.Chaser.EXP);
-        displayPressure.chase(ClientAtmosphereState.getLocalPressure(), 0.25, LerpedFloat.Chaser.EXP);
-        displayHumidity.chase(ClientAtmosphereState.getLocalHumidity(), 0.25, LerpedFloat.Chaser.EXP);
-        displayWind.chase(WindSpeedCalculation.getWindSpeed(), 0.25, LerpedFloat.Chaser.EXP);
+        displayTemp.chase(ClientAtmosphereState.getLocalTemperature(), 0.25);
+        displayPressure.chase(ClientAtmosphereState.getLocalPressure(), 0.25);
+        displayHumidity.chase(ClientAtmosphereState.getLocalHumidity(), 0.25);
+        displayWind.chase(ClientWind.regionalKmh(), 0.25);
 
         displayTemp.tickChaser();
         displayPressure.tickChaser();
@@ -156,7 +158,7 @@ public class WeatherStationScreen extends Screen {
         g.fill(x, y, x + PANEL_W, y + 18, ((int) (ease * 0xFF) << 24) | 0x1E2630);
         if (!editingName) {
             String title = station.getStationName().isBlank()
-                    ? "Weather Station" : station.getStationName();
+                    ? Key.t("block.advancedweather.weather_station") : station.getStationName();
             g.drawCenteredString(font, "§l" + title, x + PANEL_W / 2, y + 5,
                     withAlpha(0xFFFFFF, textAlpha));
             g.drawString(font, "✎", x + PANEL_W - 14, y + 5, withAlpha(0x777777, textAlpha), false);
@@ -181,11 +183,11 @@ public class WeatherStationScreen extends Screen {
         // ── Temperature — gated THERMOMETER ──
         var thermoStatus = station.getSensor(IWeatherSensor.SensorType.THERMOMETER);
         if (!station.sensorAvailable(IWeatherSensor.SensorType.THERMOMETER)) {
-            drawStat(g, left, right, line, Key.t("advancedweather.temperature"), "-", 0x555555, "[no sensor]", textAlpha);
+            drawStat(g, left, right, line, Key.t("advancedweather.temperature"), "-", 0x555555, "[" + Key.t("advancedweather.station.no_sensor") + "]", textAlpha);
         } else {
             float temp = displayTemp.getValue(partialTick);
             float realHum = ClientAtmosphereState.getLocalHumidity();
-            float realWind = WindSpeedCalculation.getWindSpeed();
+            float realWind = ClientWind.regionalKmh();
             float feelsLike = FeelsLikeCalculation.calculate(
                     ClientAtmosphereState.getLocalTemperature(), realWind, realHum);
             String comfort = FeelsLikeCalculation.getComfortLabel(feelsLike);
@@ -196,7 +198,7 @@ public class WeatherStationScreen extends Screen {
             if (thermoStatus != null && !thermoStatus.valid()) {
                 drawStat(g, left, right, line, Key.t("advancedweather.temperature"),
                         String.format("%.1f %s", displayT, tUnit),
-                        0xCC002F, "[check exposure]", textAlpha);
+                        0xCC002F, "[" + Key.t("advancedweather.sensor.placement.check") + "]", textAlpha);
             } else {
                 drawStat(g, left, right, line, Key.t("advancedweather.temperature"),
                         String.format("%.1f %s", displayT, tUnit),
@@ -208,7 +210,7 @@ public class WeatherStationScreen extends Screen {
         // ── Pressure — gated BAROMETER ──
         var baroStatus = station.getSensor(IWeatherSensor.SensorType.BAROMETER);
         if (!station.sensorAvailable(IWeatherSensor.SensorType.BAROMETER)) {
-            drawStat(g, left, right, line, Key.t("advancedweather.pressure"), "-", 0x555555, "[no sensor]", textAlpha);
+            drawStat(g, left, right, line, Key.t("advancedweather.pressure"), "-", 0x555555, "[" + Key.t("advancedweather.station.no_sensor") + "]", textAlpha);
         } else {
             float pressure = displayPressure.getValue(partialTick);
             float trend = ClientAtmosphereState.getTrend() * 20 * 60;
@@ -217,7 +219,7 @@ public class WeatherStationScreen extends Screen {
             if (baroStatus != null && !baroStatus.valid()) {
                 drawStat(g, left, right, line, Key.t("advancedweather.pressure"),
                         String.format("%.1f hPa", pressure),
-                        0xCC002F, "[check exposure]", textAlpha);
+                        0xCC002F, "[" + Key.t("advancedweather.sensor.placement.check") + "]", textAlpha);
             } else {
                 drawStat(g, left, right, line, Key.t("advancedweather.pressure"),
                         String.format("%.1f hPa", pressure),
@@ -229,13 +231,13 @@ public class WeatherStationScreen extends Screen {
         // ── Humidity — gated HYGROMETER ──
         var hygroStatus = station.getSensor(IWeatherSensor.SensorType.HYGROMETER);
         if (!station.sensorAvailable(IWeatherSensor.SensorType.HYGROMETER)) {
-            drawStat(g, left, right, line, Key.t("advancedweather.humidity"), "-", 0x555555, "[no sensor]", textAlpha);
+            drawStat(g, left, right, line, Key.t("advancedweather.humidity"), "-", 0x555555, "[" + Key.t("advancedweather.station.no_sensor") + "]", textAlpha);
         } else {
             float hum = displayHumidity.getValue(partialTick);
             if (hygroStatus != null && !hygroStatus.valid()) {
                 drawStat(g, left, right, line, Key.t("advancedweather.humidity"),
                         String.format("%.0f%%", hum),
-                        0xCC002F, "[check exposure]", textAlpha);
+                        0xCC002F, "[" + Key.t("advancedweather.sensor.placement.check") + "]", textAlpha);
             } else {
                 drawStat(g, left, right, line, Key.t("advancedweather.humidity"),
                         String.format("%.0f%%", hum),
@@ -247,17 +249,17 @@ public class WeatherStationScreen extends Screen {
         // ── Wind — gated ANEMOMETER ──
         var anemoStatus = station.getSensor(IWeatherSensor.SensorType.ANEMOMETER);
         if (!station.sensorAvailable(IWeatherSensor.SensorType.ANEMOMETER)) {
-            drawStat(g, left, right, line, Key.t("advancedweather.wind"), "-", 0x555555, "[no sensor]", textAlpha);
+            drawStat(g, left, right, line, Key.t("advancedweather.wind"), "-", 0x555555, "[" + Key.t("advancedweather.station.no_sensor") + "]", textAlpha);
         } else {
             float windKmh = displayWind.getValue(partialTick);
-            String beaufort = WindSpeedCalculation.getBeaufortLabel(windKmh);
+            String beaufort = WindScale.beaufort(windKmh).getString();
             float displayW = config.useMph ? windKmh * 0.621371f : windKmh;
             String wUnit = config.useMph ? "mph" : "km/h";
 
             if (anemoStatus != null && !anemoStatus.valid()) {
                 drawStat(g, left, right, line, Key.t("advancedweather.wind"),
                         String.format("%.1f %s", displayW, wUnit),
-                        0xCC002F, "[check exposure]", textAlpha);
+                        0xCC002F, "[" + Key.t("advancedweather.sensor.placement.check") + "]", textAlpha);
             } else {
                 drawStat(g, left, right, line, Key.t("advancedweather.wind"),
                         String.format("%.1f %s", displayW, wUnit),

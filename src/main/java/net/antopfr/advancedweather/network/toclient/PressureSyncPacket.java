@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
 
 public record PressureSyncPacket(float pressure, float trend, float forecast30,
                                  String category, String predictedNext,
-                                 String predictedIn30min, float windIntensity, String mode,
+                                 String predictedIn30min, String mode,
                                  float confidenceNext, float confidenceIn30)
         implements CustomPacketPayload {
 
@@ -25,7 +25,6 @@ public record PressureSyncPacket(float pressure, float trend, float forecast30,
                 buf.writeUtf(packet.category());
                 buf.writeUtf(packet.predictedNext());
                 buf.writeUtf(packet.predictedIn30min());
-                buf.writeFloat(packet.windIntensity());
                 buf.writeUtf(packet.mode());
                 buf.writeFloat(packet.confidenceNext());
                 buf.writeFloat(packet.confidenceIn30());
@@ -37,7 +36,6 @@ public record PressureSyncPacket(float pressure, float trend, float forecast30,
                     buf.readUtf(),
                     buf.readUtf(),
                     buf.readUtf(),
-                    buf.readFloat(),
                     buf.readUtf(),
                     buf.readFloat(),
                     buf.readFloat()
@@ -55,7 +53,6 @@ public record PressureSyncPacket(float pressure, float trend, float forecast30,
                 packet.category(),
                 packet.predictedNext(),
                 packet.predictedIn30min(),
-                packet.windIntensity(),
                 packet.mode(),
                 packet.confidenceNext(),
                 packet.confidenceIn30()

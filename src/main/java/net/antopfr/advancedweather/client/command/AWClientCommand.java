@@ -26,7 +26,7 @@ public class AWClientCommand {
                                     ClientWeatherState.reset();
                                     ClientLocalHistory.clear();
                                     ctx.getSource().sendSuccess(
-                                            () -> Component.literal("[AdvancedWeather] Cleared local client data"), false);
+                                            () -> Component.translatable("commands.aw.reset.success"), false);
                                     return 1;
                                 }))
         );

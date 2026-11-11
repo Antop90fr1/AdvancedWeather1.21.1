@@ -1,6 +1,7 @@
 package net.antopfr.advancedweather.weather;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.biome.Biome;
 
 public enum WeatherTypes {
 
@@ -59,6 +60,15 @@ public enum WeatherTypes {
 
     public boolean isVanillaRaining()   { return vanillaRaining; }
     public boolean isVanillaThundering(){ return vanillaThundering; }
+
+    public Biome.Precipitation precipitation() {
+        return switch (this) {
+            case SNOW, BLIZZARD -> Biome.Precipitation.SNOW;
+            case DRIZZLE, LIGHT_RAIN, HEAVY_RAIN, FREEZING_RAIN, THUNDERSTORM, HAIL -> Biome.Precipitation.RAIN;
+            default -> Biome.Precipitation.NONE;
+        };
+    }
+
     public Dimension dimension()        { return dimension; }
 
     public boolean isOverworld() { return dimension == Dimension.OVERWORLD; }
@@ -70,7 +80,7 @@ public enum WeatherTypes {
                 || this == FREEZING_RAIN || this == THUNDERSTORM
                 || this == SANDSTORM || this == HAIL
                 || this == BRIMSTONE_STORM || this == ASH_STORM || this == NETHERSTORM || this == HELLFIRE
-                || this == END_MIST || this == ENDERSTORM || this == VOID_STORM;
+                || this == END_MIST || this == ENDERSTORM || this == VOID_STORM || this == CHORUS_GALE;
     }
 
     public static WeatherTypes fromNameSafe(String name) {

@@ -1,9 +1,9 @@
 package net.antopfr.advancedweather.mixin;
 
-import net.antopfr.advancedweather.client.state.ClientWeatherState;
-import net.antopfr.advancedweather.weather.WeatherTypes;
+import net.antopfr.advancedweather.client.frost.FrozenGround;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.state.BlockState;
@@ -26,7 +26,8 @@ public interface BlockFrictionMixin {
     private void onGetFriction(BlockState state, LevelReader level, BlockPos pos,
                                @Nullable Entity entity, CallbackInfoReturnable<Float> cir) {
         if (!(entity instanceof LocalPlayer player)) return;
-        if (ClientWeatherState.getCurrentWeather() != WeatherTypes.FREEZING_RAIN) return;
+        float ice = FrozenGround.ice();
+        if (ice <= 0f) return;
 
         int topY = player.level().getHeight(
                 Heightmap.Types.WORLD_SURFACE,
@@ -34,6 +35,7 @@ public interface BlockFrictionMixin {
         );
         if (pos.getY() < topY - 1) return;
 
-        cir.setReturnValue(0.98f);
+        float friction = cir.getReturnValue();
+        if (friction < 0.98f) cir.setReturnValue(Mth.lerp(ice, friction, 0.98f));
     }
 }

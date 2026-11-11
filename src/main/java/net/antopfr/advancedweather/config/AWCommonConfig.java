@@ -69,14 +69,21 @@ public class AWCommonConfig {
     @SerialEntry public boolean enableEnderstorm = true;
 
     // GAMEPLAY
+    @SerialEntry public double snowCoverMinutes = 4.0;
     @SerialEntry public boolean hailDamageCrops = true;
     @SerialEntry public boolean hailDamageEntities = true;
+    @SerialEntry public boolean lavaRainBurnsEntities = true;
+    @SerialEntry public boolean voidStormUpdrafts = true;
     @SerialEntry public boolean hailBreakGlass = true;
     @SerialEntry public boolean heavyRainSlowCrops = true;
     @SerialEntry public boolean sandstormAffectsPlayers = true;   // slowness + hunger when exposed in a sandy biome
+    @SerialEntry public boolean rainbowBringsLuck = true;
+    @SerialEntry public boolean fogHidesPlayers = true;
+    @SerialEntry public boolean denseFogSpawnsMonsters = true;
 
     // AGRICULTURE
     @SerialEntry public boolean rainBoostsCrops = true;
+    @SerialEntry public boolean sunBoostsCrops = true;
     @SerialEntry public boolean frostKillsCrops = true;
     @SerialEntry public boolean droughtDriesFarmland = true;
 
@@ -85,11 +92,16 @@ public class AWCommonConfig {
     @SerialEntry public boolean windAffectsContraptions = true;
     @SerialEntry public double contraptionWindStrength = 1.0;
 
+    @SerialEntry public boolean coldSweatIntegration = true;
+    @SerialEntry public double coldSweatWeatherStrength = 0.75;
+    @SerialEntry public boolean coldSweatWindChill = true;
+    @SerialEntry public boolean coldSweatReplaceStormModifier = true;
+
     // CREATE
     @SerialEntry public boolean enableCreateWindmillCompat = true;
     @SerialEntry public double windmillWindThreshold = 0.4;
     @SerialEntry public boolean windmillDirectionAffectsOutput = true;
-    @SerialEntry public double windmillSpeedScaleFactor = 0.3;
+    @SerialEntry public double windmillSpeedScaleFactor = 0.025;
 
 
     public static AWCommonConfig get() {

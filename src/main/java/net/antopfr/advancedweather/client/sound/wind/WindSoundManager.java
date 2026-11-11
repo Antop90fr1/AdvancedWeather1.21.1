@@ -1,61 +1,58 @@
 package net.antopfr.advancedweather.client.sound.wind;
 
-import net.antopfr.advancedweather.client.state.ClientWeatherState;
+import net.antopfr.advancedweather.AdvancedWeather;
 import net.antopfr.advancedweather.client.sound.AWSounds;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindBurstManager;
-import net.antopfr.advancedweather.weather.WeatherEffects;
+import net.antopfr.advancedweather.client.wind.ClientWind;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.client.sounds.SoundManager;
 import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
-@OnlyIn(Dist.CLIENT)
-@EventBusSubscriber(modid = "advancedweather", value = Dist.CLIENT)
-public class WindSoundManager {
+@EventBusSubscriber(modid = AdvancedWeather.MOD_ID, value = Dist.CLIENT)
+public final class WindSoundManager {
 
-    private static WindBurstSound lightWindInstance = null;
-    private static WindBurstSound heavyWindInstance = null;
+    private WindSoundManager() {}
+
+    private static final float AUDIBLE_INTENSITY = 0.03f;
+
+    private static WindLoopSound light;
+    private static WindLoopSound heavy;
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null || mc.isPaused()) return;
+        if (mc.level == null || mc.player == null) {
+            stop(mc);
+            return;
+        }
+        if (mc.isPaused()) return;
 
-        WindBurstManager.tick();
+        if (ClientWind.intensity() < AUDIBLE_INTENSITY) {
+            stop(mc);
+            return;
+        }
 
-        Player player = mc.player;
-
-        if (ClientWeatherState.hasEffect(WeatherEffects.WIND_LINES)
-                || ClientWeatherState.hasEffect(WeatherEffects.NETHER_WIND_LINES)
-                || ClientWeatherState.hasEffect(WeatherEffects.END_WIND_LINES)) {
-
-            if (lightWindInstance == null || !mc.getSoundManager().isActive(lightWindInstance)) {
-                lightWindInstance = new WindBurstSound(player, AWSounds.WIND_LIGHT.get(), false);
-                mc.getSoundManager().play(lightWindInstance);
-
-            }
-
-            if (heavyWindInstance == null || !mc.getSoundManager().isActive(heavyWindInstance)) {
-                heavyWindInstance = new WindBurstSound(player, AWSounds.WIND_HEAVY.get(), true);
-                mc.getSoundManager().play(heavyWindInstance);
-            }
-
-        } else {
-            stopWindSounds(mc);
+        SoundManager sounds = mc.getSoundManager();
+        if (light == null || !sounds.isActive(light)) {
+            light = new WindLoopSound(AWSounds.WIND_LIGHT.get(), WindLoopSound.Layer.LIGHT);
+            sounds.play(light);
+        }
+        if (heavy == null || !sounds.isActive(heavy)) {
+            heavy = new WindLoopSound(AWSounds.WIND_HEAVY.get(), WindLoopSound.Layer.HEAVY);
+            sounds.play(heavy);
         }
     }
 
-    public static void stopWindSounds(Minecraft mc) {
-        if (lightWindInstance != null) {
-            mc.getSoundManager().stop(lightWindInstance);
-            lightWindInstance = null;
+    public static void stop(Minecraft mc) {
+        if (light != null) {
+            mc.getSoundManager().stop(light);
+            light = null;
         }
-        if (heavyWindInstance != null) {
-            mc.getSoundManager().stop(heavyWindInstance);
-            heavyWindInstance = null;
+        if (heavy != null) {
+            mc.getSoundManager().stop(heavy);
+            heavy = null;
         }
     }
 }

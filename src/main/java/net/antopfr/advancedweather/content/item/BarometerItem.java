@@ -2,6 +2,7 @@ package net.antopfr.advancedweather.content.item;
 
 import net.antopfr.advancedweather.client.render.AWClientRenderers;
 import net.antopfr.advancedweather.client.state.ClientAtmosphereState;
+import net.antopfr.advancedweather.util.Key;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.network.chat.Component;
@@ -32,7 +33,8 @@ public class BarometerItem extends Item {
             String trendSym = trend > 0.002f ? "§a↑" : trend < -0.002f ? "§c↓" : "§7→";
 
             player.displayClientMessage(
-                    Component.literal(String.format("§7Pressure: §f%.1f hPa §8(%s§8)", pressure, trendSym)),
+                    Component.literal("§7" + Key.label("advancedweather.pressure")
+                            + String.format("§f%.1f hPa §8(%s§8)", pressure, trendSym)),
                     true
             );
         }
@@ -47,7 +49,8 @@ public class BarometerItem extends Item {
             float trend = ClientAtmosphereState.getTrend() * 20 * 60;
             String trendSym = trend > 0.002f ? "§a↑" : trend < -0.002f ? "§c↓" : "§7→";
 
-            tooltip.add(Component.literal(String.format("§7Pressure: §f%.1f hPa §8(%s§8)", pressure, trendSym)));
+            tooltip.add(Component.literal("§7" + Key.label("advancedweather.pressure")
+                            + String.format("§f%.1f hPa §8(%s§8)", pressure, trendSym)));
         }
     }
 

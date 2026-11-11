@@ -5,7 +5,7 @@ import net.antopfr.advancedweather.client.state.ClientWeatherState;
 import net.antopfr.advancedweather.config.AWClientConfig;
 import net.antopfr.advancedweather.util.PlayerChecks;
 import net.antopfr.advancedweather.weather.WeatherEffects;
-import net.antopfr.advancedweather.weather.effect.global.wind.WindDirection;
+import net.antopfr.advancedweather.client.wind.ClientWind;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.world.entity.player.Player;
@@ -38,7 +38,8 @@ public class AshParticleHandler {
 
         ParticleOptions particle = AWParticles.ASH_PARTICLE.get();
 
-        Vec3 wind = WindDirection.get(0f);
+        Vec3 wind = ClientWind.direction();
+        double surge = ClientWind.surge();
         double windX = wind.x;
         double windZ = wind.z;
 
@@ -50,8 +51,8 @@ public class AshParticleHandler {
             double oy = (mc.level.random.nextDouble() * 3 - 0.5) * config.sandHeightSpread;
             double oz = -windZ * spawnDist + (mc.level.random.nextDouble() - 0.5) * config.sandSpread;
 
-            double dx = wind.x * config.sandWindSpeed * 0.8;
-            double dz = wind.z * config.sandWindSpeed * 0.8;
+            double dx = wind.x * config.sandWindSpeed * 0.8 * surge;
+            double dz = wind.z * config.sandWindSpeed * 0.8 * surge;
 
             if (particle != null) {
                 mc.level.addParticle(
