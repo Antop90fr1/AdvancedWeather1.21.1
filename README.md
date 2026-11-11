@@ -1,168 +1,176 @@
 # Advanced Weather
 
-*A physically-grounded weather overhaul for Minecraft: 28 weather types across all three dimensions, a real atmospheric simulation, and a full progression of craftable weather instruments.*
+A weather mod for Minecraft 1.21.1 (NeoForge). It replaces vanilla's clear, rain and thunder with 28 weather types across the Overworld, the Nether and the End, driven by a simulated atmosphere, and adds instruments you build to measure and forecast it.
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.21.1-brightgreen)]()
 [![Loader](https://img.shields.io/badge/Loader-NeoForge-orange)]()
 [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE.txt)
 
+[Modrinth](https://modrinth.com/mod/advanced-weather) · [CurseForge](https://www.curseforge.com/minecraft/mc-mods/advanced-weather) · [Issues](https://github.com/Antop90fr1/AdvancedWeather1.21.1/issues)
+
 <p align="center">
-  <img src="docs/images/banner.png" alt="Advanced Weather" width="100%">
+  <img src="docs/images/snow.png" alt="Advanced Weather" width="100%">
 </p>
 
 ---
 
-## What is Advanced Weather?
+## How it works
 
-Vanilla Minecraft has three weather states: clear, rain, and thunder. Advanced Weather replaces that with a living atmosphere. Air pressure, temperature, dew point and wind are simulated continuously and drive **28 distinct weather types**, each with its own particles, fog, sky, sound and gameplay effects. Weather doesn't teleport between states: it *transitions* based on the current atmospheric conditions, and you can actually **read, predict and archive** it using an in-world progression of scientific instruments you build yourself.
+Each dimension has its own atmosphere: air pressure, temperature, dew point, humidity and wind, updated every tick and saved with the world. The next weather is drawn from a transition graph whose odds follow that air, so a falling barometer really does mean worse weather is likely. Changes are gradual: the sky, fog, clouds, particles and sounds blend from one weather to the next.
 
-You can let it run procedurally, sync it to **real-world weather** at any location on Earth, or take full manual control.
+Temperature depends on the weather, the time of day, the biome and the height you stand at. Seasons count too if Serene Seasons or Ecliptic Seasons is installed.
 
----
-
-## Features
-
-### 🌍 A real atmospheric simulation
-
-Runs a continuous model:
-
-- **Air pressure** driven by layered simplex noise, with realistic velocity, damping and gusting.
-- **Temperature** derived from the weather type, the solar day/night cycle, adiabatic pressure effects and (optionally) the current season.
-- **Humidity** computed from temperature and dew point using the Magnus relative-humidity formula.
-- **Wind** with base intensity per weather type, pressure-gradient contribution and randomized gusts.
-- **Probabilistic transitions** - the next weather is chosen from a transition graph weighted by live atmospheric conditions, so a falling barometer genuinely means a storm is coming.
-- **Forecasting** - the engine projects the atmosphere forward in time to predict the *next* weather and the weather *in 30 minutes*, each with a confidence score.
-
-Everything is per-dimension and saved with the world.
-
-### 🌦️ 28 weather types across three dimensions
-## **Overworld (17):** 
-#### Clear · Sunny · Cloudy · Overcast · Mist · Fog · Dense Fog · Drizzle · Light Rain · Heavy Rain · Freezing Rain · Thunderstorm · Snow · Blizzard · Hail · Windy · Sandstorm
-<p>
-  <img src="docs/images/heavy_rain.png" alt="Heavy Rain" width="75%">
-</p>
-<p>
-  <img src="docs/images/sandstorm.png" alt="Sandstorm" width="75%">
-</p>
-<p>
-  <img src="docs/images/blizzard.png" alt="Blizzard" width="75%">
-</p>
-
-## **Nether (6):** 
-#### Nether Clear · Ash Storm · Brimstone Storm · Lava Rain · Netherstorm · Hellfire
-<p>
-  <img src="docs/images/hellfire.png" alt="Hellfire" width="75%">
-</p>
-<p>
-  <img src="docs/images/lava_rain.png" alt="Lava Rain" width="75%">
-</p>
-
-## **The End (5):** 
-#### End Clear · End Mist · Void Storm · Chorus Gale · Enderstorm
-<p>
-  <img src="docs/images/void_storm.png" alt="Void Storm" width="75%">
-</p>
-<p>
-  <img src="docs/images/enderstorm.png" alt="Enderstorm" width="75%">
-</p>
-
-A configurable HUD shows which weather type is active, along with the time of day (can be disabled in the config):
-<p>
-  <img src="docs/images/weather_hud.png" alt="Weather HUD">
-</p>
-
-
-### ✨ Atmospheric effects
-
-Each weather brings its own hand-tuned visuals and audio:
-
-- Volumetric **wind lines** and directional wind sound that scale with intensity and gusts.
-- Weather-specific particles: blizzard flakes, sand, ash, ground fog, freezing splashes, hail, ember/void particles.
-- **Rainbows** that can spawn after rain clears or during drizzle, **heat shimmer** in extreme heat, **water and lava ripples**, wind-blown **tumbleweeds** and drifting **chorus plants**.
-- Dynamic **fog, sky, cloud, sun, star and lightning** rendering that reacts to the current weather.
-
-### ⚡ Weather that affects gameplay
-
-- **Hail** can damage crops, hurt exposed entities and break glass (each toggleable).
-- **Heavy rain** slows crop growth.
-- **Blizzards** deepen snow accumulation.
-- Mobs **seek shelter** from dangerous weather.
-- Lightning behaviour is reworked for storms.
-
-*(All gameplay impacts are individually configurable - see [Configuration](#configuration).)*
-
-### 🔬 Instruments & progression
-
-Advanced Weather is also a **tech-progression mod**. You can't just read the weather, you have to build the tools.
-
-- **New ores & materials:** Cinnabar (→ washed dust → distilled into **Mercury**) and Bauxite (→ Alumina → carbothermic reduction → **Aluminum**, ingots, nuggets and sheets). A **Hammer** lets you crush and press by hand (or use Create's crushing wheels).
-- **Four core instruments**, each built from a calibrated heart: **Thermometer** (mercury vial), **Barometer** (spring), **Hygrometer** (sensitive fiber), **Anemometer** (cup rotor).
-- **Calibration Bench** and **Calibration Tool** - components must be calibrated before assembly, and sensors linked to stations.
-- **Portable** versions of every instrument for readings on the move.
-<p>
-  <img src="docs/images/calibration_bench.png" alt="Calibration Bench" width="75%">
-</p>
-
-### 📟 The weather station network
-
-Build a working meteorological station:
-
-- **Weather Station** - displays live readings; link sensors to unlock each measurement. Right-click with paper to **print a Weather Report**; rename it to your liking.
-- **Sensors** (Thermometer / Barometer / Hygrometer / Anemometer) with **realistic placement rules** - a thermometer must be sheltered from direct sky with airflow; an anemometer needs open sky and clear sides; etc. Bad placement gives bad readings.
-- **Weather Archive** - store reports and almanacs; it studies your measurement history to **forecast the next weather**, rejecting duplicates and reports older than its memory.
-- **Auto-Sampler** - automatically feeds station data into an archive at a configurable interval.
-- **Weather Detector** - emits redstone based on weather (rain, snow, storm, thunderstorm, hail, or an analog 0–15 wind signal). With early warning on, it lights up 90 s before the watched weather arrives and stays on while it lasts.
-- **Weather Almanac** - a portable record of archived trends.
-
-Two keybinds open a **weather history graph** and a **probable-transitions view** so you can study the atmosphere directly (only on debug mode).
-<p>
-  <img src="docs/images/machines.png" alt="Machines" width="75%">
-</p>
-<p>
-  <img src="docs/images/sensors.png" alt="Sensors" width="75%">
-</p>
-
-
-### 🌐 Real-world weather mode *(opt-in)*
-
-Enable it in the config and Advanced Weather will pull **live weather for any latitude/longitude on Earth** (via Open-Meteo) and reverse-geocode the place name (via OpenStreetMap Nominatim), mapping real conditions onto Minecraft's weather system.
-
-> **Privacy note:** this mode is **disabled by default**. When enabled, the coordinates you set in the config are sent to Open-Meteo and OpenStreetMap Nominatim to fetch weather and a location name. No data leaves your game unless you turn this on.
+You can leave it running on its own, follow the real weather of any place on Earth (opt-in), or set it by command.
 
 ---
 
-## Configuration
+## Weather types
 
-Config files are generated in your `config/` folder (`advancedweather-common.json` and the client config). Highlights:
+**Overworld (17):** Clear, Sunny, Cloudy, Overcast, Mist, Fog, Dense Fog, Drizzle, Light Rain, Heavy Rain, Freezing Rain, Thunderstorm, Snow, Blizzard, Hail, Windy, Sandstorm
 
-- **Weather toggles** - enable/disable any weather type per dimension (Overworld, Nether, End).
-- **Gameplay** - `hailDamageCrops`, `hailDamageEntities`, `hailBreakGlass`, `heavyRainSlowCrops`.
-- **Instruments** - `stationRequiresSensors`, `sensorLinkMaxDistance`.
-- **Archive/forecasting** - record capacity, minimum records for a forecast, confidence curve, forecast horizon, data-aging thresholds.
-- **Real weather** - `realWeatherEnabled`, `latitude`, `longitude`, `syncIntervalMinutes`, `realWeatherOverridesCommands`.
-- **Create compat** - `enableCreateWindmillCompat`, `windmillWindThreshold`, `windmillDirectionAffectsOutput`, `windmillSpeedScaleFactor`.
+**Nether (6):** Nether Clear, Ash Storm, Brimstone Storm, Lava Rain, Netherstorm, Hellfire
 
-A **YACL config screen** is provided for in-game editing.
+**The End (5):** End Clear, End Mist, Void Storm, Chorus Gale, Enderstorm
+
+Our weather decides what falls everywhere: if it snows, it snows in every biome, deserts included. What stays on the ground still depends on how warm the place is.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/thunderstorm.png" alt="Thunderstorm"><br><sub>Thunderstorm at night, rain slanted by the wind</sub></td>
+    <td width="50%"><img src="docs/images/freezing_rain.png" alt="Freezing rain"><br><sub>Freezing rain glazing the ground and the grass</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/snowy_taiga.png" alt="Snow"><br><sub>Snow settling on a taiga</sub></td>
+    <td width="50%"><img src="docs/images/snow_morning.png" alt="Snow at sunrise"><br><sub>The same forest at sunrise</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/sandstorm_desert.png" alt="Sandstorm in a desert"><br><sub>Sandstorm in a desert, with tumbleweeds</sub></td>
+    <td width="50%"><img src="docs/images/sandstorm_badlands.png" alt="Sandstorm in the badlands"><br><sub>Red sand in the badlands</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/netherstorm.png" alt="Netherstorm"><br><sub>Netherstorm: lava rain, embers and lightning</sub></td>
+    <td width="50%"><img src="docs/images/hellfire.png" alt="Hellfire"><br><sub>Hellfire, the hottest weather in the mod</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/enderstorm.png" alt="Enderstorm"><br><sub>Enderstorm: void rain and a distorted view</sub></td>
+    <td width="50%"><img src="docs/images/rainbow.png" alt="Rainbow"><br><sub>A double rainbow after the rain</sub></td>
+  </tr>
+</table>
+
+---
+
+## Sky, wind and ground
+
+**Clouds.** A new cloud renderer: clouds build up, darken and cover the sky with the weather, drift with the wind and catch the light of the sun.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/sky.png" alt="Clear sky"><br><sub>A clear day</sub></td>
+    <td width="50%"><img src="docs/images/custom_clouds.png" alt="Clouds"><br><sub>A cloudy one</sub></td>
+  </tr>
+</table>
+
+**Storms you see coming.** A minute or more before some weathers arrive, you can see them upwind: a thunderstorm flashes on the horizon and its thunder gets closer, a sandstorm shows as a wall of dust, and the clouds turn yellow before hail. The Netherstorm and the Enderstorm announce themselves the same way.
+
+**Wind.** The wind has a direction that slowly turns, gusts that travel across the land, and a speed shown in km/h or mph with its Beaufort name. It pushes particles, bends grass, flowers, crops and leaves, draws wind lines in strong weather, plays its own sounds, spreads fire downwind, turns Create windmills faster (visual only) and pushes Create: Aeronautics contraptions.
+
+**Ground cover.**
+- **Snow** lies on everything open to the sky and melts as the air warms up. Snow layers follow the same amount.
+- **Freezing rain** glazes the ground with ice, and the ground gets slippery. Snow under that crust lasts longer.
+- **Sandstorms** leave sand on the ground in sandy biomes. The wind blows it away and the rain washes it off.
+
+**Effects.** Each weather has its own fog and sky colour per biome, particles and overlays: blizzard flakes, sand, ash, brimstone, hail, lava and void rain, ground mist, rainbows in the morning and evening light, heat shimmer in Hellfire, a chromatic distortion in the Enderstorm, tumbleweeds and chorus petals carried by the wind, and ripples on water and lava.
+
+**Kite.** Craft a kite, dye each of its panels, and fly it. It follows the wind, and in strong wind it pulls you along and breaks your falls. In a thunderstorm, lightning can strike it.
+
+<p align="center">
+  <img src="docs/images/kite.png" alt="Kite" width="75%">
+</p>
+
+---
+
+## Gameplay
+
+Every effect below can be turned off in the config.
+
+- **Crops:** drizzle and light rain make crops and saplings grow faster, sunny days a little too. Heavy rain slows them, hail damages them, and a long blizzard or freezing rain kills exposed crops. Long hot dry spells dry out farmland.
+- **Hail** hurts anything outside, animals included, and breaks glass. Mobs look for shelter from hail, blizzards, sandstorms and thunderstorms.
+- **Sandstorms** slow down and tire players out in the open.
+- **Fog** lets players get closer to monsters before being spotted. In dense fog, monsters can spawn even in daylight, never near a light.
+- **Rainbows** give Luck to players under the sky.
+- **Lava Rain** sets fire to mobs and players under the sky. A netherite helmet protects you.
+- **Void Storm** surges lift the air above the void: they carry an elytra and slow a fall.
+- **Wind** spreads fire one block downwind.
+
+---
+
+## Instruments and progression
+
+You have to build the tools before you can read the weather.
+
+- **Materials:** Cinnabar ore is washed and distilled into Mercury. Bauxite is refined into Alumina, then reduced into Aluminum (ingots, nuggets and sheets). The Hammer crushes and presses by hand, and Create's crushing wheels work too.
+- **Calibration:** each instrument needs a calibrated part (a spring, a cup rotor, a sensitive fiber, or a mercury vial). You calibrate springs, rotors and fibers at the Calibration Bench through a small mini-game.
+- **Portable instruments:** Thermometer (with a "feels like" temperature), Barometer (with the pressure trend), Hygrometer and Anemometer. Use them to read the air where you stand.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/calibration_bench.png" alt="Calibration Bench"><br><sub>Calibrating a spring at the Calibration Bench</sub></td>
+    <td width="50%"><img src="docs/images/thermometer.png" alt="Thermometer"><br><sub>A reading from the portable thermometer</sub></td>
+  </tr>
+</table>
+
+**Weather station network:**
+- **Sensors** (thermometer, barometer, hygrometer, anemometer) have placement rules: a thermometer must be shaded but get airflow, an anemometer needs open sky. A badly placed sensor gives bad readings.
+- The **Weather Station** shows the readings of the sensors linked to it with the Calibration Tool. Right-click it with paper to print a **Weather Report**.
+- The **Weather Archive** keeps reports and almanacs, draws graphs of their history and forecasts the next weather, with a confidence level.
+- The **Auto-Sampler** sends the station's readings to an archive at a set interval.
+- The **Weather Detector** gives a redstone signal for rain, snow, any precipitation, storms, thunderstorms or hail, or an analog signal for wind speed. With early warning on, it turns on 90 seconds before the weather arrives.
+- The **Weather Almanac** is a portable book of archived reports.
+- With Create, a Display Link reads the Weather Station and shows its readings on Display Boards.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/weather_station.png" alt="Weather Station"><br><sub>The Weather Station during a thunderstorm</sub></td>
+    <td width="50%"><img src="docs/images/machines.png" alt="Machines"><br><sub>Station, archive and detector</sub></td>
+  </tr>
+</table>
+
+**Changing the weather:** use a mercury vial on a Block of Aluminum and it slowly grows a Dormant Crystal (faster in humid air). Drop that crystal where the right weather can reach it (struck by lightning in a thunderstorm, in lava during Hellfire, into the void during an Enderstorm, at the height limit under a clear sky) to charge it. Charged crystals make Seeding Rockets: rain, clear, frost or warm. Fire one to nudge the air towards that weather for a couple of minutes.
+
+A configurable **HUD** shows the current weather and the time of day.
+
+An **advancement tab** follows your progress, from your first reading to every weather of every dimension.
+
+---
+
+## Real-world weather (opt-in)
+
+Turn it on in the config, set a latitude and longitude (or pick a place with `/aw map`), and the Overworld follows the live weather of that place, from Open-Meteo. The place name comes from OpenStreetMap Nominatim.
+
+> This mode is off by default. When it is on, the coordinates you set are sent to Open-Meteo and Nominatim. Nothing leaves your game otherwise.
 
 ---
 
 ## Compatibility
 
-| Mod                                 | Type              | What it adds                                                                     |
+| Mod                                 | Type              | What it does with Advanced Weather                                               |
 |-------------------------------------|-------------------|----------------------------------------------------------------------------------|
-| **YetAnotherConfigLib (YACL)**      | Required (both)   | Config files and in-game config screen                                           |
-| **Create**                          | Optional          | Windmill sails visibly follow the wind (visual only); weather on Display Boards  |
-| **Create: Aeronautics / Simulated** | Optional          | Wind pushes simulated contraptions                                               |
-| **Serene Seasons**                  | Optional          | Season-aware weather types, temperature & dew point                              |
-| **Ecliptic Seasons**                | Optional          | Its solar terms shape AW weather, temperature and dew point; AW drives its rain  |
-| **JEI**                             | Optional (client) | Calibration Bench recipes in the recipe viewer                                   |
-| **Particle Rain**                   | Optional (client) | Its rain, snow and dust follow AW weather types, their intensity and the wind    |
-| **ATMOSPHERICS**                    | Optional (client) | Its biome fog, sky and dust stay; AW weather fog, cloud veil and wind lead       |
-| **Iris Shaders**                    | Partial           | With a shader pack on, AW clouds, fog and ground cover give way to the pack      |
+| **YetAnotherConfigLib (YACL)**      | Required (both)   | Config files and the in-game config screen                                       |
+| **Create**                          | Optional          | Windmill sails follow the wind (visual only); weather on Display Boards          |
+| **Create: Aeronautics / Simulated** | Optional          | The wind pushes flying contraptions                                              |
+| **Serene Seasons**                  | Optional          | Seasons shape the weather, temperature and dew point                             |
+| **Ecliptic Seasons**                | Optional          | Its solar terms shape the weather, temperature and dew point; we drive its rain  |
+| **Cold Sweat**                      | Optional          | Weather, wind and humidity change your body temperature                          |
+| **JEI**                             | Optional (client) | Calibration and amalgamation recipes, kite dyeing                                |
+| **Particle Rain**                   | Optional (client) | Its rain, snow and dust follow our weather and wind; lava and void rain use its drops |
+| **ATMOSPHERICS**                    | Optional (client) | Its biome fog, sky and dust stay; our weather fog, clouds and wind take the lead |
+| **Iris Shaders**                    | Partial           | With a shader pack on, our clouds, fog and ground cover give way to the pack     |
 
-<p>
+<p align="center">
   <img src="docs/images/wind.png" alt="Aeronautics compatibility" width="75%">
 </p>
+
+The mod is translated into English and French.
 
 ---
 
@@ -170,40 +178,44 @@ A **YACL config screen** is provided for in-game editing.
 
 - **Minecraft** 1.21.1
 - **NeoForge** 21.1.233+
-- **YetAnotherConfigLib** 3.6+
+- **YetAnotherConfigLib** 3.6+, on the client and the server
+
+---
+
+## Configuration
+
+Two config files in `config/`: `advancedweather-common.json` (weather, gameplay, real weather, archive, compat) and the client one (HUD, units, clouds, wind, particles, ground cover). Both can be edited in game from the mod list, through YACL.
+
+- **Weather types:** turn any weather on or off, or a whole dimension.
+- **Gameplay:** each effect listed above has its own switch.
+- **Instruments:** whether stations need sensors, and how far a sensor can be from its station.
+- **Archive:** capacity, records needed for a forecast, confidence, how fast data gets old.
+- **Real weather:** on/off, coordinates, sync interval, whether it overrides commands.
+- **Client:** °C or °F, km/h or mph, HUD position, cloud distance, wind lines, foliage sway, snow and sand cover, particle amounts.
 
 ---
 
 ## Commands
 
-All commands live under `/aw`. Server commands require permission level 2 (operator); the two client commands run locally and need no permissions.
-
-**Read:**
-
-| Command | Description                                                                    |
-|---|--------------------------------------------------------------------------------|
-| `/aw` | Show the current weather                                                       |
-| `/aw history` | Recent weather history                                                         |
-
-**Control:**
+All commands start with `/aw`. Server commands need permission level 2 (operator). The client commands need none.
 
 | Command | Description |
 |---|---|
-| `/aw set <type>` | Switch to a weather type now; it lasts a normal spell, then the weather engine carries on |
-| `/aw auto` | Hand control back to the weather engine |
-| `/aw refresh` | Pull real-world weather now (requires real weather enabled) |
+| `/aw` | Show the current weather |
+| `/aw history` | Recent weather history |
+| `/aw set <type>` | Switch to a weather now; it lasts a normal spell, then the weather engine carries on |
+| `/aw approach <type>` | Bring a thunderstorm, sandstorm, hail, Netherstorm or Enderstorm, seen coming first |
+| `/aw auto` | Start a new natural spell and redraw the next weather |
+| `/aw force <pressure> <dewpoint> <temp> <seconds> [bias]` | Push the atmosphere for a while |
+| `/aw seed <pressure> <dewpoint> <temp> <seconds> <bias>` | Same, and bring the change within about 25 seconds |
+| `/aw force clear` | Remove the active pushes |
+| `/aw rainbow spawn\|clear` | Show or remove a rainbow |
+| `/aw effect add\|remove <effect>` | Turn a single visual effect on or off |
+| `/aw refresh` | Fetch the real weather now (real weather must be on) |
 | `/aw setlocation <lat> <lon>` | Set the real-weather coordinates |
-| `/aw effect add\|remove <effect>` | Toggle an individual visual effect |
-| `/aw force <pressure> <dewpoint> <temp> <seconds>` | Nudge the atmosphere for a duration |
-| `/aw force clear` | Clear active atmospheric forcings |
-| `/aw rainbow spawn\|clear` | Spawn or remove rainbows |
 | `/aw debug` | Toggle the debug overlay |
-
-**Client:**
-
-| Command | Description |
-|---|---|
-| `/aw reset` | Clear the client's cached weather data |
+| `/aw map` | Client: pick the real-weather place on a map |
+| `/aw reset` | Client: clear the weather data cached by your game |
 
 ---
 
@@ -293,7 +305,7 @@ Registering **custom weather types** from another mod is not supported yet - pla
 
 Released under the **MIT License**. See [LICENSE](LICENSE.txt).
 
-## Third-Party Software Notices :
+## Third-party software notices
 
 This software embeds the following third-party libraries via JarJar:
 

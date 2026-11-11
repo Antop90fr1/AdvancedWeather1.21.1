@@ -33,14 +33,17 @@ public final class LavaRainHandler {
 
     private static final double HEARING_RANGE = 14.0;
     private static final int SOUNDS_PER_TICK = 2;
+    private static final int SPLASHES_PER_TICK = 6;
     private static final int RUMBLE_INTERVAL = 50;
 
     private static int soundsThisTick;
+    private static int splashesThisTick;
     private static int rumbleDelay;
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         soundsThisTick = 0;
+        splashesThisTick = 0;
 
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
@@ -105,6 +108,12 @@ public final class LavaRainHandler {
             drops++;
         }
         return drops;
+    }
+
+    static boolean splash() {
+        if (splashesThisTick >= SPLASHES_PER_TICK) return false;
+        splashesThisTick++;
+        return true;
     }
 
     static void impact(ClientLevel level, double x, double y, double z) {

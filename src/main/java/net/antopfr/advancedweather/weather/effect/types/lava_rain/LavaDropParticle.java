@@ -45,7 +45,7 @@ public class LavaDropParticle extends StreakParticle {
     }
 
     public static void land(ClientLevel level, double x, double y, double z) {
-        if (!level.getFluidState(BlockPos.containing(x, y - 0.05, z)).is(FluidTags.LAVA)) {
+        if (!level.getFluidState(BlockPos.containing(x, y - 0.05, z)).is(FluidTags.LAVA) && LavaRainHandler.splash()) {
             RandomSource random = level.random;
             level.addParticle(ParticleTypes.LANDING_LAVA, x, y + 0.05, z, 0.0, 0.0, 0.0);
             if (random.nextFloat() < 0.25f) level.addParticle(ParticleTypes.SMOKE, x, y + 0.1, z, 0.0, 0.02, 0.0);
