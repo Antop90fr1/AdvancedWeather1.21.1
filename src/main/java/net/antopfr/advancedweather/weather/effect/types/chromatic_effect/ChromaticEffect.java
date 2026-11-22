@@ -3,6 +3,7 @@ package net.antopfr.advancedweather.weather.effect.types.chromatic_effect;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.post.PostPipeline;
 import net.antopfr.advancedweather.client.state.ClientWeatherState;
+import net.antopfr.advancedweather.compat.flashback.FlashbackCompat;
 import net.antopfr.advancedweather.weather.WeatherEffects;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
@@ -58,6 +59,10 @@ public class ChromaticEffect {
     }
 
     private static void enablePipeline() {
+        if (FlashbackCompat.editorPreview()) {
+            disablePipeline();
+            return;
+        }
         if (active) return;
         active = true;
         VeilRenderSystem.renderer().getPostProcessingManager().add(CHROMATIC_EFFECT_SHADER);

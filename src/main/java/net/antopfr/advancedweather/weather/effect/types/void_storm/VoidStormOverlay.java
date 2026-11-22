@@ -3,6 +3,7 @@ package net.antopfr.advancedweather.weather.effect.types.void_storm;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.post.PostPipeline;
 import net.antopfr.advancedweather.client.state.ClientWeatherState;
+import net.antopfr.advancedweather.compat.flashback.FlashbackCompat;
 import net.antopfr.advancedweather.util.PlayerChecks;
 import net.antopfr.advancedweather.weather.WeatherTypes;
 import net.minecraft.client.Minecraft;
@@ -65,6 +66,10 @@ public final class VoidStormOverlay {
     }
 
     private static void enablePipeline() {
+        if (FlashbackCompat.editorPreview()) {
+            disablePipeline();
+            return;
+        }
         if (active) return;
         active = true;
         VeilRenderSystem.renderer().getPostProcessingManager().add(PIPELINE_ID);

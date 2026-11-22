@@ -82,10 +82,12 @@ public class SeasonModifiers {
 
     private static float winterModifier(WeatherTypes type) {
         return switch (type) {
-            case SNOW, BLIZZARD            -> 1.8f;
+            case SNOW                      -> 2.4f;
+            case BLIZZARD                  -> 2.6f;
             case FREEZING_RAIN, HAIL       -> 1.5f;
             case FOG, DENSE_FOG            -> 1.3f;
             case OVERCAST                  -> 1.3f;
+            case DRIZZLE, LIGHT_RAIN, HEAVY_RAIN -> 0.6f;
             case SUNNY, SANDSTORM          -> 0.2f;
             case THUNDERSTORM              -> 0.4f;
             default -> 1.0f;

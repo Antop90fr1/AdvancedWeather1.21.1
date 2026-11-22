@@ -29,6 +29,19 @@ public final class SnowPack {
         return lying == null ? 0f : lying;
     }
 
+    public Map<ResourceLocation, Float> table() {
+        return Map.copyOf(snow);
+    }
+
+    public boolean isEmpty() {
+        return snow.isEmpty();
+    }
+
+    public void clear() {
+        snow.clear();
+        crust = 0f;
+    }
+
     public float snowAt(ServerLevel level, BlockPos pos) {
         if (snow.isEmpty()) return 0f;
         return snow(level.getBiome(pos).unwrapKey().map(ResourceKey::location).orElse(null));

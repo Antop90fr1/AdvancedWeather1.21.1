@@ -1,10 +1,13 @@
 package net.antopfr.advancedweather.server.ai;
 
 import net.antopfr.advancedweather.server.event.SandstormEffect;
+import net.antopfr.advancedweather.util.AWLogger;
 import net.antopfr.advancedweather.weather.WeatherManager;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.level.Level;
@@ -18,6 +21,8 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SeekShelterGoal extends Goal {
 
@@ -30,6 +35,8 @@ public class SeekShelterGoal extends Goal {
     private static final double RUN_SPEED = 1.4;
     private static final double SHUFFLE_SPEED = 0.8;
 
+    private static final Set<EntityType<?>> TOLD = ConcurrentHashMap.newKeySet();
+
     private final PathfinderMob mob;
     private final BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 
@@ -39,6 +46,7 @@ public class SeekShelterGoal extends Goal {
     private int checkDelay;
     private int weatherDelay;
     private int failedSearches;
+    private boolean broken;
 
     public SeekShelterGoal(PathfinderMob mob) {
         this.mob = mob;
@@ -48,7 +56,7 @@ public class SeekShelterGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        if (checkDelay-- > 0) return false;
+        if (broken || checkDelay-- > 0) return false;
         checkDelay = reducedTickDelay(30 + mob.getRandom().nextInt(20));
 
         if (!canMove() || !isThreatened()) return false;
@@ -155,9 +163,19 @@ public class SeekShelterGoal extends Goal {
     }
 
     private Path pathTo(BlockPos spot) {
+        if (broken) return null;
         int corner = (int) (mob.getBbWidth() + 1f) / 2;
-        Path candidate = mob.getNavigation().createPath(spot.offset(-corner, 0, -corner), 1, PATH_RANGE);
-        return candidate != null && candidate.canReach() ? candidate : null;
+        try {
+            Path candidate = mob.getNavigation().createPath(spot.offset(-corner, 0, -corner), 1, PATH_RANGE);
+            return candidate != null && candidate.canReach() ? candidate : null;
+        } catch (RuntimeException e) {
+            broken = true;
+            if (TOLD.add(mob.getType())) {
+                AWLogger.AW.warn("[AdvancedWeather] {} cannot find paths",
+                        BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()), e);
+            }
+            return null;
+        }
     }
 
     private List<BlockPos> findSpots(int radius, int wanted, boolean onePerArea) {

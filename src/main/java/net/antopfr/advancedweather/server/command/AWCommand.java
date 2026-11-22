@@ -1,5 +1,6 @@
 package net.antopfr.advancedweather.server.command;
 
+import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -18,6 +19,7 @@ import net.antopfr.advancedweather.weather.StormApproach;
 import net.antopfr.advancedweather.weather.WeatherEffects;
 import net.antopfr.advancedweather.weather.WeatherManager;
 import net.antopfr.advancedweather.weather.WeatherTypes;
+import net.antopfr.advancedweather.weather.Weatherless;
 import net.antopfr.advancedweather.weather.effect.EffectManager;
 import net.antopfr.advancedweather.weather.effect.types.rainbows.RainbowSpawner;
 import net.minecraft.ChatFormatting;
@@ -40,7 +42,7 @@ public class AWCommand {
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
         return Commands.literal("aw")
                 .requires(source -> source.hasPermission(2))
-                .executes(AWCommand::info)
+                .executes(here(AWCommand::info))
                 .then(history())
                 .then(debug())
                 .then(force())
@@ -66,7 +68,7 @@ public class AWCommand {
     // /aw history
     private static LiteralArgumentBuilder<CommandSourceStack> history() {
         return Commands.literal("history")
-                .executes(ctx -> {
+                .executes(here(ctx -> {
                     ServerLevel level = ctx.getSource().getLevel();
                     List<WeatherTypes> recent = AdvancedWeatherAPI.getRecentHistory(level);
                     if (recent.isEmpty()) {
@@ -80,7 +82,7 @@ public class AWCommand {
                     }
                     ctx.getSource().sendSuccess(() -> Component.translatable("commands.aw.history.list", joined), false);
                     return 1;
-                });
+                }));
     }
 
     // /aw debug
@@ -99,21 +101,21 @@ public class AWCommand {
                         .then(Commands.argument("dewpoint", FloatArgumentType.floatArg(-30f, 30f))
                                 .then(Commands.argument("temp", FloatArgumentType.floatArg(-30f, 30f))
                                         .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 600))
-                                                .executes(ctx -> doForcing(ctx, AtmosphericForcing.Bias.NONE, false))
+                                                .executes(here(ctx -> doForcing(ctx, AtmosphericForcing.Bias.NONE, false)))
                                                 .then(Commands.argument("bias", StringArgumentType.word())
                                                         .suggests(AWCommand::suggestBias)
-                                                        .executes(ctx -> {
+                                                        .executes(here(ctx -> {
                                                             AtmosphericForcing.Bias bias = parseBias(ctx);
                                                             return bias == null ? 0 : doForcing(ctx, bias, false);
-                                                        }))))))
+                                                        })))))))
                 .then(Commands.literal("clear")
-                        .executes(ctx -> {
+                        .executes(here(ctx -> {
                             ServerLevel level = ctx.getSource().getLevel();
                             WeatherManager.get(level).getAtmosphere(level).clearForcings();
                             ctx.getSource().sendSuccess(
                                     () -> Component.translatable("commands.aw.force.cleared"), true);
                             return 1;
-                        }));
+                        })));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> seed() {
@@ -124,10 +126,10 @@ public class AWCommand {
                                         .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 600))
                                                 .then(Commands.argument("bias", StringArgumentType.word())
                                                         .suggests(AWCommand::suggestBias)
-                                                        .executes(ctx -> {
+                                                        .executes(here(ctx -> {
                                                             AtmosphericForcing.Bias bias = parseBias(ctx);
                                                             return bias == null ? 0 : doForcing(ctx, bias, true);
-                                                        }))))));
+                                                        })))))));
     }
 
     // /aw set <type>
@@ -142,7 +144,7 @@ public class AWCommand {
                             }
                             return builder.buildFuture();
                         })
-                        .executes(ctx -> {
+                        .executes(here(ctx -> {
                             String input = StringArgumentType.getString(ctx, "type");
                             WeatherTypes type = WeatherTypes.fromNameSafe(input);
                             if (!input.equalsIgnoreCase(type.name())) {
@@ -160,7 +162,7 @@ public class AWCommand {
                             ctx.getSource().sendSuccess(
                                     () -> Component.translatable("commands.aw.set.success", type.displayName()), true);
                             return 1;
-                        }));
+                        })));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> approach() {
@@ -174,7 +176,7 @@ public class AWCommand {
                             }
                             return builder.buildFuture();
                         })
-                        .executes(ctx -> {
+                        .executes(here(ctx -> {
                             String input = StringArgumentType.getString(ctx, "type");
                             WeatherTypes type = WeatherTypes.fromNameSafe(input);
                             ServerLevel level = ctx.getSource().getLevel();
@@ -193,7 +195,7 @@ public class AWCommand {
                                     () -> Component.translatable("commands.aw.approach.success",
                                             type.displayName(), StormApproach.lead(type) / 20), true);
                             return 1;
-                        }));
+                        })));
     }
 
     // /aw setlocation <latitude> <longitude>
@@ -222,7 +224,7 @@ public class AWCommand {
     private static LiteralArgumentBuilder<CommandSourceStack> rainbow() {
         return Commands.literal("rainbow")
                 .then(Commands.literal("spawn")
-                        .executes(ctx -> {
+                        .executes(here(ctx -> {
                             ServerLevel level = ctx.getSource().getLevel();
                             if (!level.dimension().equals(Level.OVERWORLD)) {
                                 ctx.getSource().sendFailure(Component.translatable("commands.aw.rainbow.overworld_only"));
@@ -233,16 +235,16 @@ public class AWCommand {
                                     ? "commands.aw.rainbow.spawned"
                                     : "commands.aw.rainbow.spawned_low_sun"), false);
                             return 1;
-                        }))
+                        })))
                 .then(Commands.literal("clear")
-                        .executes(ctx -> {
+                        .executes(here(ctx -> {
                             ServerLevel level = ctx.getSource().getLevel();
                             boolean cleared = RainbowSpawner.clear(level);
                             ctx.getSource().sendSuccess(() -> Component.translatable(cleared
                                     ? "commands.aw.rainbow.cleared"
                                     : "commands.aw.rainbow.none"), false);
                             return 1;
-                        }));
+                        })));
     }
 
     // /aw effect add|remove <effect>
@@ -251,11 +253,11 @@ public class AWCommand {
                 .then(Commands.literal("add")
                         .then(Commands.argument("effect", StringArgumentType.word())
                                 .suggests(AWCommand::suggestEffects)
-                                .executes(ctx -> applyEffect(ctx, true))))
+                                .executes(here(ctx -> applyEffect(ctx, true)))))
                 .then(Commands.literal("remove")
                         .then(Commands.argument("effect", StringArgumentType.word())
                                 .suggests(AWCommand::suggestEffects)
-                                .executes(ctx -> applyEffect(ctx, false))));
+                                .executes(here(ctx -> applyEffect(ctx, false)))));
     }
 
     private static java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggestEffects(
@@ -284,13 +286,13 @@ public class AWCommand {
     // /aw auto
     private static LiteralArgumentBuilder<CommandSourceStack> auto() {
         return Commands.literal("auto")
-                .executes(ctx -> {
+                .executes(here(ctx -> {
                     ServerLevel level = ctx.getSource().getLevel();
                     WeatherManager.get(level).startAutoWeather(level);
                     ctx.getSource().sendSuccess(
                             () -> Component.translatable("commands.aw.auto.started"), true);
                     return 1;
-                });
+                }));
     }
 
     // /aw refresh  (pull real weather now)
@@ -308,6 +310,11 @@ public class AWCommand {
 
                     ServerLevel overworld = ctx.getSource().getServer().getLevel(Level.OVERWORLD);
                     if (overworld == null) return 0;
+                    if (Weatherless.in(overworld)) {
+                        ctx.getSource().sendFailure(Component.translatable("commands.aw.weatherless",
+                                overworld.dimension().location().toString()));
+                        return 0;
+                    }
 
                     CommandSourceStack source = ctx.getSource();
                     OpenMeteo.fetchAsync(config.latitude, config.longitude)
@@ -362,6 +369,18 @@ public class AWCommand {
                 String.format("%.0f", p), String.format("%.0f", dp), String.format("%.0f", t),
                 sec, bias.name().toLowerCase()), true);
         return 1;
+    }
+
+    private static Command<CommandSourceStack> here(Command<CommandSourceStack> command) {
+        return ctx -> {
+            ServerLevel level = ctx.getSource().getLevel();
+            if (Weatherless.in(level)) {
+                ctx.getSource().sendFailure(Component.translatable("commands.aw.weatherless",
+                        level.dimension().location().toString()));
+                return 0;
+            }
+            return command.run(ctx);
+        };
     }
 
     public static void onRegisterCommands(RegisterCommandsEvent event) {

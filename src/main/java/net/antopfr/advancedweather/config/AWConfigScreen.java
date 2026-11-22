@@ -1,17 +1,22 @@
 package net.antopfr.advancedweather.config;
 
 import dev.isxander.yacl3.api.ConfigCategory;
+import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.OptionGroup;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.*;
 import net.antopfr.advancedweather.client.gui.hud.WeatherHudOverlay;
+import net.antopfr.advancedweather.util.ModLoaded;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -24,10 +29,18 @@ public class AWConfigScreen {
     // CLIENT
     public static Screen createClient(Screen parent) {
         AWClientConfig config = AWClientConfig.get();
+        boolean[] snowShown = {config.snowCover, config.snowyLeaves, config.eclipticBlockSnow};
 
         YetAnotherConfigLib.Builder builder = YetAnotherConfigLib.createBuilder()
                 .title(Component.translatable("advancedweather.config.title.client"))
-                .save(config::save);
+                .save(() -> {
+                    config.save();
+                    boolean[] now = {config.snowCover, config.snowyLeaves, config.eclipticBlockSnow};
+                    if (ModLoaded.ECLIPTICSEASONS && !Arrays.equals(now, snowShown)) {
+                        System.arraycopy(now, 0, snowShown, 0, now.length);
+                        Minecraft.getInstance().levelRenderer.allChanged();
+                    }
+                });
 
         // WEATHER HUD
         ConfigCategory weatherHud = ConfigCategory.createBuilder()
@@ -78,6 +91,20 @@ public class AWConfigScreen {
                         .name(Component.translatable("advancedweather.config.cloud_render_distance"))
                         .binding(384, () -> config.cloudRenderDistance, v -> config.cloudRenderDistance = v)
                         .controller(opt -> IntegerSliderControllerBuilder.create(opt).range(128, 768).step(64))
+                        .build())
+                .option(Option.<Integer>createBuilder()
+                        .name(Component.translatable("advancedweather.config.cloud_height_offset"))
+                        .description(OptionDescription.of(Component.translatable("advancedweather.config.cloud_height_offset.desc")))
+                        .binding(0, () -> config.cloudHeightOffset, v -> config.cloudHeightOffset = v)
+                        .controller(opt -> IntegerSliderControllerBuilder.create(opt).range(-32, 128).step(8))
+                        .build())
+                .option(bool("smoother_clouds", true,
+                        () -> config.smootherClouds, v -> config.smootherClouds = v))
+                .option(Option.<Float>createBuilder()
+                        .name(Component.translatable("advancedweather.config.cloud_glow"))
+                        .description(OptionDescription.of(Component.translatable("advancedweather.config.cloud_glow.desc")))
+                        .binding(0.18f, () -> config.cloudGlow, v -> config.cloudGlow = v)
+                        .controller(opt -> FloatSliderControllerBuilder.create(opt).range(0f, 0.5f).step(0.01f))
                         .build())
                 .option(bool("weather_seen_coming", true,
                         () -> config.distantStorms, v -> config.distantStorms = v))
@@ -144,7 +171,7 @@ public class AWConfigScreen {
                 .option(Option.<Integer>createBuilder()
                         .name(Component.translatable("advancedweather.config.particles_per_batch"))
                         .description(OptionDescription.of(Component.translatable("advancedweather.config.particles_per_batch.desc")))
-                        .binding(48, () -> config.blizzardCount, v -> config.blizzardCount = v)
+                        .binding(96, () -> config.blizzardCount, v -> config.blizzardCount = v)
                         .controller(opt -> IntegerSliderControllerBuilder.create(opt).range(1, 200).step(1))
                         .build())
                 .option(Option.<Integer>createBuilder()
@@ -320,7 +347,7 @@ public class AWConfigScreen {
                         .build())
                 .build();
 
-        ConfigCategory freezingRain = ConfigCategory.createBuilder()
+        ConfigCategory.Builder frostSnowAndSand = ConfigCategory.createBuilder()
                 .name(Component.translatable("advancedweather.config.category.frost_snow_and_sand"))
                 .option(bool("frozen_ground", true,
                         () -> config.frozenGround, v -> config.frozenGround = v))
@@ -328,9 +355,21 @@ public class AWConfigScreen {
                         () -> config.snowCover, v -> config.snowCover = v))
                 .option(bool("snow_cover_over_snow_blocks", false,
                         () -> config.snowCoverOnSnow, v -> config.snowCoverOnSnow = v))
+                .option(bool("snowy_leaves", true,
+                        () -> config.snowyLeaves, v -> config.snowyLeaves = v))
                 .option(bool("sand_cover", true,
                         () -> config.sandCover, v -> config.sandCover = v))
-                .build();
+                .option(Option.<Integer>createBuilder()
+                        .name(Component.translatable("advancedweather.config.cover_detail_distance"))
+                        .description(OptionDescription.of(Component.translatable("advancedweather.config.cover_detail_distance.desc")))
+                        .binding(96, () -> config.coverDetailDistance, v -> config.coverDetailDistance = v)
+                        .controller(opt -> IntegerSliderControllerBuilder.create(opt).range(32, 256).step(16))
+                        .build());
+        if (ModLoaded.ECLIPTICSEASONS) {
+            frostSnowAndSand.option(bool("ecliptic_block_snow", true,
+                    () -> config.eclipticBlockSnow, v -> config.eclipticBlockSnow = v));
+        }
+        ConfigCategory freezingRain = frostSnowAndSand.build();
 
         ConfigCategory particleRainCompat = ConfigCategory.createBuilder()
                 .name(Component.translatable("advancedweather.config.category.particle_rain_compatibility"))
@@ -398,6 +437,13 @@ public class AWConfigScreen {
                         .option(bool("end_mist", true, () -> common.enableEndMist, v -> common.enableEndMist = v))
                         .option(bool("chorus_gale", true, () -> common.enableChorusGale, v -> common.enableChorusGale = v))
                         .option(bool("enderstorm", true, () -> common.enableEnderstorm, v -> common.enableEnderstorm = v))
+                        .build())
+                .group(ListOption.<String>createBuilder()
+                        .name(Component.translatable("advancedweather.config.disabled_dimensions"))
+                        .description(OptionDescription.of(Component.translatable("advancedweather.config.disabled_dimensions.desc")))
+                        .binding(new ArrayList<>(), () -> common.disabledDimensions, v -> common.disabledDimensions = new ArrayList<>(v))
+                        .controller(StringControllerBuilder::create)
+                        .initial("")
                         .build())
                 .build();
 

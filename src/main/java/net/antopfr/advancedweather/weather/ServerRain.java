@@ -26,6 +26,10 @@ public final class ServerRain {
         return weather == null ? -1f : WeatherDefinitions.get(weather).rainIntensity;
     }
 
+    public static void forget(Level level) {
+        LEVELS.remove(level.dimension());
+    }
+
     public static void clear() {
         LEVELS.clear();
     }

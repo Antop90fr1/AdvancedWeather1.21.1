@@ -182,6 +182,8 @@ public final class CloudRenderer {
         uniform(program, "FadeStart", radius * 0.45f);
         uniform(program, "FadeEnd", radius * 0.95f);
         uniform(program, "Flash", light.flash());
+        uniform(program, "CloudRelief", AWClientConfig.get().smootherClouds ? 1f : 0f);
+        uniform(program, "CloudGlow", AWClientConfig.get().cloudGlow);
         vec3(program, "CloudTint", CloudState.tintR(), CloudState.tintG(), CloudState.tintB());
         vec3(program, "LightDir", light.lightDir());
         vec3(program, "LightColor", light.lightColor());

@@ -13,6 +13,7 @@ public class BiomeFogData {
     static {
         DEFAULTS.put(WeatherTypes.FOG,             0xBFBFBF);
         DEFAULTS.put(WeatherTypes.DENSE_FOG,       0xA6A6AD);
+        DEFAULTS.put(WeatherTypes.BLIZZARD,        0xD4DEE6);
         DEFAULTS.put(WeatherTypes.THUNDERSTORM,    0x596173);
         DEFAULTS.put(WeatherTypes.SANDSTORM,       0xD9B05C);
         DEFAULTS.put(WeatherTypes.HAIL,            0xCECFAB);

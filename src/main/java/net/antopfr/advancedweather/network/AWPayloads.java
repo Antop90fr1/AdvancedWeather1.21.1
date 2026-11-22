@@ -19,6 +19,8 @@ public class AWPayloads {
         r.playToClient(WindSyncPacket.TYPE, WindSyncPacket.CODEC, WindSyncPacket::handle);
         r.playToClient(RainbowSyncPacket.TYPE, RainbowSyncPacket.CODEC, RainbowSyncPacket::handle);
         r.playToClient(GroundCoverSyncPacket.TYPE, GroundCoverSyncPacket.CODEC, GroundCoverSyncPacket::handle);
+        r.playToClient(SnowTableSyncPacket.TYPE, SnowTableSyncPacket.CODEC, SnowTableSyncPacket::handle);
+        r.playToClient(WeatherlessSyncPacket.TYPE, WeatherlessSyncPacket.CODEC, WeatherlessSyncPacket::handle);
         r.playToClient(StormApproachPacket.TYPE, StormApproachPacket.CODEC, StormApproachPacket::handle);
         r.playToClient(TemperatureSyncPacket.TYPE, TemperatureSyncPacket.CODEC, TemperatureSyncPacket::handle);
         r.playToClient(HumiditySyncPacket.TYPE, HumiditySyncPacket.CODEC, HumiditySyncPacket::handle);

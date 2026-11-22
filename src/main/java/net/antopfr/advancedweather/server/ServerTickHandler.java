@@ -27,6 +27,10 @@ public class ServerTickHandler {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
 
         WeatherManager manager = WeatherManager.get(level);
+        if (manager.holdIfWeatherless(level)) {
+            ServerRain.forget(level);
+            return;
+        }
         manager.tick(level);
         ServerRain.update(level, manager.getCurrentWeather(level));
     }
@@ -38,7 +42,7 @@ public class ServerTickHandler {
 
     @SubscribeEvent
     public static void onVanillaWeatherDisable(LevelTickEvent.Post event) {
-        if (event.getLevel() instanceof ServerLevel serverLevel) {
+        if (event.getLevel() instanceof ServerLevel serverLevel && !Weatherless.in(serverLevel)) {
             if (serverLevel.getLevelData() instanceof ServerLevelData serverData) {
 
                 if (serverData.isRaining()) {
@@ -60,6 +64,7 @@ public class ServerTickHandler {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
         AWCommonConfig config = AWCommonConfig.get();
         WeatherManager manager = WeatherManager.get(level);
+        if (Weatherless.in(level)) return;
 
         if (config.realWeatherEnabled && level.dimension().equals(Level.OVERWORLD)) {
             OpenMeteo.fetchAsync(config.latitude, config.longitude).thenAccept(type -> {
@@ -91,6 +96,7 @@ public class ServerTickHandler {
 
     private static void syncAllToPlayer(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
+        PacketDistributor.sendToPlayer(player, new WeatherlessSyncPacket(Weatherless.in(level)));
         WeatherManager manager = WeatherManager.get(level);
         AtmosphericSystem a = manager.getAtmosphere(level);
         WeatherTypes current = manager.getCurrentWeather(level);
@@ -113,6 +119,7 @@ public class ServerTickHandler {
         PacketDistributor.sendToPlayer(player, WindSyncPacket.of(manager.getWindState(level)));
         PacketDistributor.sendToPlayer(player, new RainbowSyncPacket(manager.getRainbowStart(), manager.getRainbowEnd()));
         manager.syncGroundCover(player, true);
+        manager.syncSnowTable(player, true);
         manager.syncStormApproach(player);
         PacketDistributor.sendToPlayer(player, new TemperatureSyncPacket(
                 a.getTemperature(), a.forecastTemperatureFromState(forecast, 30, time, current, level)));

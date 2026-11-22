@@ -2,6 +2,8 @@ package net.antopfr.advancedweather.client.cloud;
 
 import net.antopfr.advancedweather.client.state.ClientAtmosphereState;
 import net.antopfr.advancedweather.client.state.ClientWeatherState;
+import net.antopfr.advancedweather.client.state.WeatherlessDimension;
+import net.antopfr.advancedweather.config.AWClientConfig;
 import net.antopfr.advancedweather.weather.BiomeFogData;
 import net.antopfr.advancedweather.weather.CloudShape;
 import net.antopfr.advancedweather.weather.WeatherDefinition;
@@ -85,13 +87,13 @@ public final class CloudState {
     }
 
     public static boolean visible(Level level) {
-        return level.dimension() == Level.OVERWORLD && coverage > 0.003f;
+        return level.dimension() == Level.OVERWORLD && !WeatherlessDimension.off() && coverage > 0.003f;
     }
 
     public static float threshold() { return 1f - coverage; }
 
     public static float coverage()     { return coverage; }
-    public static float altitude()     { return altitude; }
+    public static float altitude()     { return altitude + AWClientConfig.get().cloudHeightOffset; }
     public static float opacity()      { return opacity; }
     public static float minThickness() { return minThickness; }
     public static float maxThickness() { return maxThickness; }

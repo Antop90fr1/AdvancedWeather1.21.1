@@ -6,8 +6,8 @@ import net.antopfr.advancedweather.client.state.ClientWeatherState;
 import net.antopfr.advancedweather.client.wind.ClientWind;
 import net.antopfr.advancedweather.config.AWClientConfig;
 import net.antopfr.advancedweather.util.AWLogger;
+import net.antopfr.advancedweather.util.FogLerp;
 import net.antopfr.advancedweather.util.ModLoaded;
-import net.antopfr.advancedweather.weather.WeatherDefinitions;
 import net.antopfr.advancedweather.weather.WeatherTypes;
 import net.antopfr.advancedweather.weather.wind.WindField;
 import net.antopfr.advancedweather.weather.wind.WindSample;
@@ -187,20 +187,29 @@ public final class AtmosphericsCompat {
     }
 
     private static float distance(WeatherTypes type, boolean near, float renderDistance) {
-        float set = near ? WeatherDefinitions.get(type).fogNear : WeatherDefinitions.get(type).fogFar;
-        if (set < 0f) return renderDistance;
-        return near ? set : Math.min(renderDistance, set);
+        return near ? FogLerp.nearFor(type, renderDistance) : FogLerp.farFor(type, renderDistance);
     }
 
     public static int fogColor(int theirs, int ours) {
         if (!enabled() || theirs == ours) return theirs;
 
+        int weathered = weathered(theirs);
         boolean from = ClientWeatherState.getPreviousWeather().hasFog();
         boolean to = ClientWeatherState.getCurrentWeather().hasFog();
-        if (!from && !to) return theirs;
+        if (!from && !to) return weathered;
 
         float share = authority(from, to, progress());
-        return blend(theirs, ours, 16, share) << 16 | blend(theirs, ours, 8, share) << 8 | blend(theirs, ours, 0, share);
+        return blend(weathered, ours, 16, share) << 16 | blend(weathered, ours, 8, share) << 8 | blend(weathered, ours, 0, share);
+    }
+
+    private static int weathered(int rgb) {
+        Vec3 color = SkyVeil.tint(new Vec3((rgb >> 16 & 0xFF) / 255.0, (rgb >> 8 & 0xFF) / 255.0, (rgb & 0xFF) / 255.0),
+                Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
+        return channel(color.x) << 16 | channel(color.y) << 8 | channel(color.z);
+    }
+
+    private static int channel(double value) {
+        return Mth.clamp((int) Math.round(value * 255.0), 0, 255);
     }
 
     public static float[] veiledTwilight(float[] colors) {

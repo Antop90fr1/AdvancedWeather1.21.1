@@ -47,6 +47,14 @@ public final class SandDrift {
         return lying == null ? 0f : lying;
     }
 
+    public boolean isEmpty() {
+        return sand.isEmpty();
+    }
+
+    public void clear() {
+        sand.clear();
+    }
+
     public Lying lyingAt(ServerLevel level, BlockPos pos) {
         if (sand.isEmpty()) return Lying.NONE;
 

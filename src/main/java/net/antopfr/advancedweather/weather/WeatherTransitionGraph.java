@@ -241,6 +241,20 @@ public class WeatherTransitionGraph {
         return Math.max(0f, Math.min(1f, (tempC - HEAT_STORM_FROM) / (HEAT_STORM_FULL - HEAT_STORM_FROM)));
     }
 
+    private static final Map<WeatherTypes, List<Transition>> COLD_SNOW = new EnumMap<>(WeatherTypes.class);
+    private static final float COLD_SNOW_FROM = 3f;
+    private static final float COLD_SNOW_FULL = -3f;
+
+    static {
+        COLD_SNOW.put(WeatherTypes.OVERCAST,  List.of(to(WeatherTypes.SNOW, 2)));
+        COLD_SNOW.put(WeatherTypes.CLOUDY,    List.of(to(WeatherTypes.SNOW, 1)));
+        COLD_SNOW.put(WeatherTypes.SNOW,      List.of(to(WeatherTypes.SNOW, 1)));
+    }
+
+    private static float cold(float tempC) {
+        return Math.max(0f, Math.min(1f, (COLD_SNOW_FROM - tempC) / (COLD_SNOW_FROM - COLD_SNOW_FULL)));
+    }
+
     private static List<Transition> candidates(WeatherTypes current, WeatherTypes.Dimension dimension,
                                                AtmosphericSystem atmosphere) {
         List<Transition> candidates = new ArrayList<>(TRANSITIONS.getOrDefault(current, List.of()));
@@ -248,6 +262,7 @@ public class WeatherTransitionGraph {
             addConversions(candidates, COLD_SNAP.get(current), atmosphere.biasStrength(AtmosphericForcing.Bias.COOLING));
             addConversions(candidates, WARM_SPELL.get(current), atmosphere.biasStrength(AtmosphericForcing.Bias.HEATING));
             addConversions(candidates, HEAT_STORM.get(current), heat(atmosphere.getTemperature()));
+            addConversions(candidates, COLD_SNOW.get(current), cold(atmosphere.getTemperature()));
         }
         candidates.removeIf(t -> !isCompatible(t.target(), dimension) || !isEnabled(t.target()));
         return candidates;
@@ -362,7 +377,10 @@ public class WeatherTransitionGraph {
                                                             List<WeatherTypes> measuredHistory) {
 
         List<Transition> known = new ArrayList<>(TRANSITIONS.getOrDefault(from, List.of()));
-        if (dimension == WeatherTypes.Dimension.OVERWORLD) addConversions(known, HEAT_STORM.get(from), heat(tempC));
+        if (dimension == WeatherTypes.Dimension.OVERWORLD) {
+            addConversions(known, HEAT_STORM.get(from), heat(tempC));
+            addConversions(known, COLD_SNOW.get(from), cold(tempC));
+        }
         List<Transition> transitions = known.stream()
                 .filter(t -> isCompatible(t.target(), dimension))
                 .filter(t -> isEnabled(t.target()))

@@ -1,5 +1,6 @@
 package net.antopfr.advancedweather.server.ai;
 
+import net.antopfr.advancedweather.mixin.PathNavigationAccessor;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
@@ -21,7 +22,8 @@ public class WeatherShelterHandler {
         if (!(event.getEntity() instanceof PathfinderMob mob)) return;
         if (mob instanceof Enemy) return;
 
-        if (!(mob.getNavigation() instanceof GroundPathNavigation)) return;
+        if (!(mob.getNavigation() instanceof GroundPathNavigation navigation)) return;
+        if (((PathNavigationAccessor) navigation).advancedweather$pathFinder() == null) return;
 
         int idle = idlePriority(mob);
         if (idle == NONE) return;

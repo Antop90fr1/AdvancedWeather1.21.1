@@ -1,14 +1,4 @@
 {
-  "hail_loop": {
-    "category": "weather",
-    "subtitle": "subtitles.advancedweather.hail",
-    "sounds": [
-      {
-        "name": "advancedweather:hail",
-        "volume": 0.5
-      }
-    ]
-  },
   "wind_light": {
     "subtitle": "subtitles.advancedweather.wind.light",
     "sounds": [
@@ -25,6 +15,26 @@
       {
         "name": "advancedweather:wind_heavy",
         "volume": 0.5,
+        "stream": true
+      }
+    ]
+  },
+  "blizzard": {
+    "subtitle": "subtitles.advancedweather.blizzard",
+    "sounds": [
+      {
+        "name": "advancedweather:blizzard",
+        "volume": 0.6,
+        "stream": true
+      }
+    ]
+  },
+  "sandstorm": {
+    "subtitle": "subtitles.advancedweather.sandstorm",
+    "sounds": [
+      {
+        "name": "advancedweather:sandstorm",
+        "volume": 0.6,
         "stream": true
       }
     ]

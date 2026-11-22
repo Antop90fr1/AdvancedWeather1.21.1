@@ -4,6 +4,7 @@ import net.antopfr.advancedweather.client.state.ClientWeatherState;
 import net.antopfr.advancedweather.weather.BiomeFogData;
 import net.antopfr.advancedweather.weather.WeatherTypes;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -17,6 +18,8 @@ import net.neoforged.neoforge.client.event.ViewportEvent;
 
 @EventBusSubscriber(modid = "advancedweather", value = Dist.CLIENT)
 public class FogHandler {
+
+    private static final float WHITEOUT = 0.8f;
 
     @SubscribeEvent
     public static void onRenderFog(ViewportEvent.RenderFog event) {
@@ -74,11 +77,19 @@ public class FogHandler {
             smoothedFog = smoothedFog.lerp(target, 0.03);
         }
 
-        float darken = mc.level.getSkyDarken((float) event.getPartialTick());
+        float partialTick = (float) event.getPartialTick();
+        float darken = mc.level.getSkyDarken(partialTick);
+        float whiteout = ClientWeatherState.presence(WeatherTypes.BLIZZARD, partialTick) * WHITEOUT;
+        darken = Mth.lerp(whiteout, darken, daylight(mc.level, partialTick));
 
         event.setRed((float) smoothedFog.x * darken);
         event.setGreen((float) smoothedFog.y * darken);
         event.setBlue((float) smoothedFog.z * darken);
+    }
+
+    private static float daylight(ClientLevel level, float partialTick) {
+        float sun = 1f - Mth.clamp(1f - (Mth.cos(level.getTimeOfDay(partialTick) * Mth.TWO_PI) * 2f + 0.2f), 0f, 1f);
+        return sun * 0.8f + 0.2f;
     }
 
     private static Vec3 toVec(int rgb) {

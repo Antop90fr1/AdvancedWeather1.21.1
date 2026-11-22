@@ -27,7 +27,6 @@ float noise(vec2 p) {
   mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
 }
 
-// fbm 3 octaves — nuages amorphes
 float fbm(vec2 p) {
   float v = 0.0;
   float a = 0.5;
@@ -73,7 +72,6 @@ void main() {
   vec2 uv = texCoord0;
   vec2 auv = vec2(uv.x * PanelAspect, uv.y);
 
-  // Deux couches de nuages qui dérivent à des vitesses différentes (parallaxe)
   float speed = 0.15 + WeatherEnergy * 0.35;
   float n1 = fbm(uv * 3.0 + vec2(AWTime * speed, AWTime * speed * 0.3));
   float n2 = fbm(uv * 6.0 - vec2(AWTime * speed * 1.7, 0.0) + 42.0);
@@ -83,10 +81,8 @@ void main() {
   float contrast = mix(0.35, 0.9, WeatherEnergy);
   clouds = smoothstep(0.5 - contrast * 0.4, 0.5 + contrast * 0.4, clouds);
 
-  // Couverture pilotée par le type : à 0, plus aucun nuage
   clouds *= CloudAmount;
 
-  // Pulse d'éclair occasionnel quand l'énergie est haute
   float flash = 0.0;
   if (WeatherEnergy > 0.7) {
     float t = fract(AWTime * 0.11);
@@ -95,7 +91,7 @@ void main() {
   }
 
   float clearBoost = (1.0 - CloudAmount) * 0.18;
-  float skyGradient = mix(0.05, 0.0, uv.y) * (1.0 - CloudAmount); // léger dégradé, plus clair en haut
+  float skyGradient = mix(0.05, 0.0, uv.y) * (1.0 - CloudAmount);
   vec3 base = WeatherTint * (0.22 + clearBoost + skyGradient);
   vec3 cloudCol = WeatherTint * mix(0.30, 0.55, clouds);
   vec3 color = mix(base, cloudCol, clouds) + vec3(flash * 0.35);
@@ -103,16 +99,14 @@ void main() {
   if (RainLevel > 0.01) {
     float slant = uv.y * 0.15;
 
-    // Couche 1 — rapide, premier plan
     float colPos1 = (uv.x + slant) * 90.0;
     float col1 = floor(colPos1);
     float active1 = step(0.75, hash(vec2(col1, 0.0)));
-    // Trait fin : seulement le centre de la colonne (~35% de sa largeur)
+
     float thin1 = smoothstep(0.30, 0.42, fract(colPos1)) * smoothstep(0.70, 0.58, fract(colPos1));
     float fall1 = fract(uv.y * 2.0 - AWTime * 6.0 + hash(vec2(col1, 7.0)) * 19.0);
     float drop1 = active1 * thin1 * smoothstep(0.0, 0.06, fall1) * smoothstep(0.40, 0.34, fall1);
 
-    // Couche 2 — plus lente, plus fine, arrière-plan
     float colPos2 = (uv.x + slant * 1.5) * 140.0;
     float col2 = floor(colPos2);
     float active2 = step(0.8, hash(vec2(col2, 3.0)));
@@ -127,13 +121,12 @@ void main() {
   // snow
   if (SnowAmount > 0.01) {
     float snow = 0.0;
-    // vitesse liée à l'énergie : SNOW (energy 0.2) lent, BLIZZARD (0.75) rapide
 
     float fallSpeed = 0.10 + WeatherEnergy * 0.75;
-    float driftMag = 0.10 + WeatherEnergy * 0.14;   // était 0.06/0.10 — amplitude relevée
+    float driftMag = 0.10 + WeatherEnergy * 0.14;
 
     float scale = 16.0;
-    // Dérive d'ensemble lente : toute la nappe penche doucement d'un côté puis de l'autre
+
     float sway = sin(AWTime * 0.35) * 0.06;
     vec2 grid = vec2(auv.x + sway * auv.y, auv.y - AWTime * fallSpeed) * scale;
     vec2 cell = floor(grid);
@@ -147,7 +140,7 @@ void main() {
       + 0.5 * sin(AWTime * (1.9 + seed * 0.7) + seed * 12.6)) * driftMag;
 
       float variant = step(0.5, hash(cell + 27.3));
-      vec2 local = (f - flakePos) / 0.45;   // taille du sprite 3x3 dans la cellule
+      vec2 local = (f - flakePos) / 0.45;
       snow = flakePixel(local, variant);
     }
     color = mix(color, vec3(0.95, 0.96, 1.0), min(snow, 1.0) * SnowAmount * 0.8);
@@ -172,21 +165,19 @@ void main() {
 
   if (WindLines > 0.01) {
     float wind = 0.0;
-    // Rangées fines ; chaque rangée a sa vitesse et sa phase
+
     float rowScale = 24.0;
     float row = floor(uv.y * rowScale);
     float rowSeed = hash(vec2(row, 41.0));
 
-    // ~30% des rangées actives, retirées/ajoutées au fil du temps
     float activeCycle = hash(vec2(row, floor(AWTime * 0.25)));
     if (activeCycle > 0.7) {
       float speed = 1.2 + rowSeed * 1.4;
-      // Position horizontale du trait qui traverse
+
       float xPos = fract(uv.x * 0.5 - AWTime * speed * 0.3 + rowSeed * 7.0);
-      // Trait : segment court avec traînée (montée douce, coupure nette à l'avant)
+
       float line = smoothstep(0.0, 0.25, xPos) * smoothstep(0.32, 0.30, xPos);
 
-      // Finesse verticale dans la rangée + légère ondulation du tracé
       float yInRow = fract(uv.y * rowScale + sin(uv.x * 9.0 + AWTime * 2.0 + rowSeed * 6.28) * 0.08);
       float thin = smoothstep(0.35, 0.48, yInRow) * smoothstep(0.65, 0.52, yInRow);
 
@@ -195,7 +186,6 @@ void main() {
     color = mix(color, WeatherTint * 0.7 + vec3(0.25), wind * WindLines * 0.45);
   }
 
-  // Vignette adoucie
   vec2 c = uv - 0.5;
   float vignette = 1.0 - dot(c, c) * 0.8;
   color *= max(vignette, 0.55);

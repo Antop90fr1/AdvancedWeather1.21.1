@@ -7,6 +7,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.fml.loading.FMLPaths;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 public class AWCommonConfig {
 
@@ -19,20 +21,22 @@ public class AWCommonConfig {
                     .build())
             .build();
 
+    @SerialEntry public List<String> disabledDimensions = new ArrayList<>();
+
     // WEATHER INSTRUMENTS
     @SerialEntry public boolean stationRequiresSensors = true;
     @SerialEntry public double sensorLinkMaxDistance = 32.0;
 
     // WEATHER REPORTS
-    @SerialEntry public boolean enableWeatherReports = true;          // impression sur la station
-    @SerialEntry public int archiveMaxRecords = 20000;                // capacité mémoire
-    @SerialEntry public int archiveMinRecordsForForecast = 15;        // en-dessous : aucune prévision
-    @SerialEntry public int archiveConfidenceFloorRecords = 15;       // début de la courbe
-    @SerialEntry public int archiveConfidenceSaturationRecords = 200; // pleine confiance
-    @SerialEntry public long archiveForecastHorizonTicks = 1200;      // horizon de projection (1200 ticks)
-    @SerialEntry public long archiveAgingDataTicks = 12000;           // seuil [aging data]
-    @SerialEntry public long archiveOutdatedDataTicks = 24000;        // seuil [outdated]
-    @SerialEntry public boolean archiveRejectOlderReports = true;     // règle d'antériorité
+    @SerialEntry public boolean enableWeatherReports = true;
+    @SerialEntry public int archiveMaxRecords = 20000;
+    @SerialEntry public int archiveMinRecordsForForecast = 15;
+    @SerialEntry public int archiveConfidenceFloorRecords = 15;
+    @SerialEntry public int archiveConfidenceSaturationRecords = 200;
+    @SerialEntry public long archiveForecastHorizonTicks = 1200;
+    @SerialEntry public long archiveAgingDataTicks = 12000;
+    @SerialEntry public long archiveOutdatedDataTicks = 24000;
+    @SerialEntry public boolean archiveRejectOlderReports = true;
     @SerialEntry public int reportPrintingTicks = 30;
     @SerialEntry public int almanacMaxRecords = 32;
 
@@ -76,7 +80,7 @@ public class AWCommonConfig {
     @SerialEntry public boolean voidStormUpdrafts = true;
     @SerialEntry public boolean hailBreakGlass = true;
     @SerialEntry public boolean heavyRainSlowCrops = true;
-    @SerialEntry public boolean sandstormAffectsPlayers = true;   // slowness + hunger when exposed in a sandy biome
+    @SerialEntry public boolean sandstormAffectsPlayers = true;
     @SerialEntry public boolean rainbowBringsLuck = true;
     @SerialEntry public boolean fogHidesPlayers = true;
     @SerialEntry public boolean denseFogSpawnsMonsters = true;

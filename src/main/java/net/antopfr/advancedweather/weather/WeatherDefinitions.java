@@ -173,13 +173,13 @@ public class WeatherDefinitions {
         WeatherDefinition.of(WeatherTypes.BLIZZARD)
                 .temperature(-6f).wind(0.75f)
                 .pressure(980f).dewPoint(-8f)
-                .duration(3000, 9000)
+                .duration(6000, 15000)
                 .clouds(new Vec3(0.80, 0.83, 0.88), 0.629f)
                 .cloudAltitude(128f).coverage(0.97f, 0.04f).cloudShape(CloudShape.NIMBOSTRATUS)
                 .skyDesaturation(0.90f)
                 .rainIntensity(1.0f)
                 .hidesSun(true)
-                .fog(5f, 25f)
+                .fog(0f, 30f)
                 .effects(WeatherEffects.WIND_LINES, WeatherEffects.BLIZZARD_PARTICLES)
                 .build();
 

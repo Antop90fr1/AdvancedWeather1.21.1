@@ -17,6 +17,12 @@ public class AWSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> WIND_HEAVY = SOUNDS.register("wind_heavy",
             () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath("advancedweather", "wind_heavy")));
 
+    public static final DeferredHolder<SoundEvent, SoundEvent> SANDSTORM = SOUNDS.register("sandstorm",
+            () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath("advancedweather", "sandstorm")));
+
+    public static final DeferredHolder<SoundEvent, SoundEvent> BLIZZARD = SOUNDS.register("blizzard",
+            () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath("advancedweather", "blizzard")));
+
     public static void register(IEventBus modEventBus) {
         SOUNDS.register(modEventBus);
     }

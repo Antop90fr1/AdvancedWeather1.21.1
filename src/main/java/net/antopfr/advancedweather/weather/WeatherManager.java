@@ -14,9 +14,9 @@ import net.antopfr.advancedweather.weather.wind.WindState;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.neoforged.neoforge.common.NeoForge;
@@ -44,6 +44,10 @@ public class WeatherManager extends SavedData {
     private final Map<WeatherTypes.Dimension, WeatherTypes> pendingWeathers = new EnumMap<>(WeatherTypes.Dimension.class);
     private final Map<WeatherTypes.Dimension, KnownOutlook> outlooks = new EnumMap<>(WeatherTypes.Dimension.class);
     private final Map<ServerPlayer, float[]> coverTold = new WeakHashMap<>();
+    private final Map<ServerPlayer, Map<ResourceLocation, Float>> snowTableTold = new WeakHashMap<>();
+
+    private static final int SNOW_TABLE_TICKS = 100;
+    private static final float SNOW_TABLE_STEP = 0.01f;
 
     private static final int HISTORY_SIZE = 5;
     private static final int ATMOSPHERE_SYNC_TICKS = 20;
@@ -176,6 +180,9 @@ public class WeatherManager extends SavedData {
             snowPacks.get(dim).tick(level, currentWeather, atmosphere.getTemperature());
             sandDrifts.get(dim).tick(level, currentWeather, wind.intensity());
             for (ServerPlayer player : level.players()) syncGroundCover(player, false);
+            if (gameTick % SNOW_TABLE_TICKS == 0) {
+                for (ServerPlayer player : level.players()) syncSnowTable(player, false);
+            }
         }
         if (gameTick % 20 == 0) {
             syncPacketToDimension(level, WindSyncPacket.of(wind));
@@ -285,6 +292,47 @@ public class WeatherManager extends SavedData {
         syncPacketToDimension(level, new StormApproachPacket(level.getGameTime() + lead, type));
     }
 
+    private boolean held;
+
+    public boolean holdIfWeatherless(ServerLevel level) {
+        boolean off = Weatherless.in(level);
+        if (off != held) {
+            held = off;
+            syncPacketToDimension(level, new WeatherlessSyncPacket(off));
+            if (!off) startAutoWeather(level);
+        }
+        if (off) hold(level);
+        return off;
+    }
+
+    private void hold(ServerLevel level) {
+        WeatherTypes.Dimension dim = DimensionProfile.getDimension(level);
+        WeatherTypes calm = defaultForDimension(dim);
+        WindState wind = winds.get(dim);
+        EffectManager effects = EffectManager.get(level);
+        boolean stirring = currentWeathers.get(dim) != calm || pendingWeathers.containsKey(dim)
+                || weatherTimers.get(dim) >= 0 || wind.intensity() > 0f
+                || !snowPacks.get(dim).isEmpty() || !sandDrifts.get(dim).isEmpty()
+                || !effects.getActiveEffects().isEmpty();
+        if (!stirring) return;
+
+        forgetPending(level);
+        WeatherTypes previous = currentWeathers.put(dim, calm);
+        weatherTimers.put(dim, -1);
+        wind.reset();
+        snowPacks.get(dim).clear();
+        sandDrifts.get(dim).clear();
+        effects.setEffects(level, EnumSet.noneOf(WeatherEffects.class));
+        setDirty();
+        syncToClients(level, calm);
+        syncPacketToDimension(level, WindSyncPacket.of(wind));
+        for (ServerPlayer player : level.players()) {
+            syncGroundCover(player, true);
+            syncSnowTable(player, true);
+        }
+        fireWeatherChange(level, dim, previous, calm);
+    }
+
     // ALL MODES CONTROL
     public void setCurrentWeather(ServerLevel level, WeatherTypes type) {
         forgetPending(level);
@@ -372,9 +420,6 @@ public class WeatherManager extends SavedData {
                 raining ? 6000 : 0,
                 raining, thundering);
 
-        level.getGameRules().getRule(GameRules.RULE_SNOW_ACCUMULATION_HEIGHT)
-                .set(weather == WeatherTypes.BLIZZARD ? 8 : 1, level.getServer());
-
         EffectManager.get(level).setEffects(level,
                 EnumSet.copyOf(WeatherDefinitions.get(weather).effects));
     }
@@ -448,6 +493,22 @@ public class WeatherManager extends SavedData {
         syncPacketToDimension(level, new HumiditySyncPacket(
                 a.getHumidity(), a.forecastHumidityFromState(forecast, currentWeather, 30, time, level)));
         syncPacketToDimension(level, new TransitionProbabilitiesPacket(probabilities));
+    }
+
+    public void syncSnowTable(ServerPlayer player, boolean always) {
+        Map<ResourceLocation, Float> table = getSnowPack(player.serverLevel()).table();
+        Map<ResourceLocation, Float> told = snowTableTold.get(player);
+        if (!always && told != null && !snowTableMoved(told, table)) return;
+        snowTableTold.put(player, table);
+        PacketDistributor.sendToPlayer(player, new SnowTableSyncPacket(table));
+    }
+
+    private static boolean snowTableMoved(Map<ResourceLocation, Float> told, Map<ResourceLocation, Float> now) {
+        if (!told.keySet().equals(now.keySet())) return true;
+        for (Map.Entry<ResourceLocation, Float> entry : now.entrySet()) {
+            if (Math.abs(entry.getValue() - told.get(entry.getKey())) >= SNOW_TABLE_STEP) return true;
+        }
+        return false;
     }
 
     public void syncGroundCover(ServerPlayer player, boolean always) {

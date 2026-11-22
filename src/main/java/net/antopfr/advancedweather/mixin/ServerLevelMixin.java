@@ -8,7 +8,6 @@ import net.antopfr.advancedweather.util.BiomeMixinContext;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
@@ -59,7 +58,7 @@ public class ServerLevelMixin {
         }
 
         if (falling == Biome.Precipitation.SNOW) {
-            int maxLayers = level.getGameRules().getInt(GameRules.RULE_SNOW_ACCUMULATION_HEIGHT);
+            int maxLayers = type == WeatherTypes.BLIZZARD ? 8 : 1;
             if (maxLayers > 0 && level.random.nextFloat() < SnowMelt.layerChance(type)) {
                 BlockState topState = level.getBlockState(topPos);
                 boolean validSupport = Blocks.SNOW.defaultBlockState().canSurvive(level, topPos);

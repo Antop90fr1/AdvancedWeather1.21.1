@@ -18,6 +18,8 @@ uniform float FadeEnd;
 uniform float Flash;
 uniform vec3 FarFlash;
 uniform float TileFade;
+uniform float CloudRelief;
+uniform float CloudGlow;
 
 out vec4 fragColor;
 
@@ -41,6 +43,10 @@ void main() {
 
     float towardsLight = pow(clamp(dot(viewDir, LightDir), 0.0, 1.0), 10.0);
     color += LightColor * towardsLight * (1.0 - coreDepth) * 0.9;
+    if (n.y < -0.5) {
+        color += LightColor * CloudGlow * (1.0 - coreDepth);
+        color *= 1.0 + CloudRelief * mix(0.1, -0.1, smoothstep(0.0, 1.0, coreDepth));
+    }
 
     color += vec3(0.78, 0.82, 1.0) * Flash * (1.15 - heightFrac * 0.6);
 

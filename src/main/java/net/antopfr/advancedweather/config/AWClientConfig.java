@@ -29,11 +29,17 @@ public class AWClientConfig {
 
     // clouds
     @SerialEntry public int cloudRenderDistance = 384;
+    @SerialEntry public int cloudHeightOffset = 0;
+    @SerialEntry public boolean smootherClouds = true;
+    @SerialEntry public float cloudGlow = 0.18f;
 
     @SerialEntry public boolean frozenGround = true;
     @SerialEntry public boolean snowCover = true;
     @SerialEntry public boolean snowCoverOnSnow = false;
+    @SerialEntry public boolean snowyLeaves = true;
+    @SerialEntry public boolean eclipticBlockSnow = true;
     @SerialEntry public boolean sandCover = true;
+    @SerialEntry public int coverDetailDistance = 96;
 
     @SerialEntry public boolean distantStorms = true;
 
@@ -56,7 +62,7 @@ public class AWClientConfig {
     @SerialEntry public boolean atmosphericsIntegration = true;
 
     // blizzard
-    @SerialEntry public int blizzardCount = 48;
+    @SerialEntry public int blizzardCount = 96;
     @SerialEntry public int blizzardTickInterval = 2;
     @SerialEntry public double blizzardSpawnDist = 8.0;
     @SerialEntry public double blizzardSpread = 16.0;

@@ -6,7 +6,6 @@ uniform float Intensity;
 in vec2 texCoord;
 out vec4 fragColor;
 
-// Bruit simple pour des fractures irrégulières
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
@@ -30,15 +29,12 @@ void main() {
         return;
     }
 
-    // Distance au centre — l'effet est plus fort vers les bords (vignette d'instabilité)
     vec2 centered = texCoord - 0.5;
     float dist = length(centered);
 
-    // Bruit lent qui module l'intensité de la distorsion par zones (fractures)
     float fractureNoise = noise(centered * 6.0 + vec2(AWTime * 0.15, -AWTime * 0.1));
     float fractureMask = smoothstep(0.4, 0.85, fractureNoise);
 
-    // Décalage chromatique radial — plus fort vers les bords + zones de fracture
     float aberration = (0.006 + dist * 0.01) * intensity * (0.3 + fractureMask * 0.7);
 
     vec2 dir = normalize(centered + 0.0001);
@@ -54,12 +50,10 @@ void main() {
 
     vec3 color = vec3(r, g, b);
 
-    // Légère teinte violette dans les zones de fracture intense
     vec3 voidTint = vec3(0.55, 0.25, 0.85);
     float tintStrength = fractureMask * intensity * 0.12;
     color = mix(color, color * voidTint + voidTint * 0.05, tintStrength);
 
-    // Scintillement très subtil de luminosité dans les fractures
     float flicker = 1.0 + sin(AWTime * 8.0 + fractureNoise * 20.0) * 0.03 * fractureMask * intensity;
     color *= flicker;
 
